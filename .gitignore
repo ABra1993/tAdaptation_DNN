@@ -4,6 +4,7 @@ data/*
 datasets/*
 models/cnn_feedforward_div_norm
 models/module_exp_div_norm.py
+# models/utils
 predefined_variables/*
 runs/*
 utils/*

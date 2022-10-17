@@ -1,7 +1,7 @@
 import torch
 # print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
 import os
-# print(os.getcwd())
+print(os.getcwd())
 import matplotlib.pyplot as plt
 
 import torch.nn as nn

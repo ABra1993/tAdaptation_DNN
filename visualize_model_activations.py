@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # import required script
 from models.cnn_feedforward import cnn_feedforward
-from models.cnn_feedforward_exp_decay import cnn_feedforward_exp_decay
+# from models.cnn_feedforward_exp_decay import cnn_feedforward_exp_decay
 from models.cnn_feedforward_div_norm import cnn_feedforward_div_norm
 from utils.noiseMNIST_dataset import noiseMNIST_dataset
 from utils.functions import *
