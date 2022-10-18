@@ -90,6 +90,7 @@ def torch_cross_val_norm(x, y, b, c, w, h, sigma, n, t_steps):
 
     convnl = torch.Tensor(t_steps, b*c*w*h)
     normrsp = torch.Tensor(t_steps, b*c*w*h)
+    normrsp[0, :] = sigma_resh
     for t in range(t_steps):
         if t == 0:
             continue
