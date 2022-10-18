@@ -16,6 +16,7 @@ def h1(tau1, t_steps, sample_rate, b, c, w, h):
 
     # compute impulse response function
     y = input * torch.exp(-input/tau1_resh)
+    y = y/torch.sum(y)
 
     return y.transpose(0,1).reshape(t_steps, b, c, w, h)
 
@@ -29,6 +30,7 @@ def h2(tau2, sample_rate, t_steps, b, c, w, h):
 
     # compute impulse response function
     y = torch.exp(-input/tau2_resh)
+    y = y/torch.sum(y)
 
     return y.transpose(0,1).reshape(t_steps, b, c, w, h)
 
