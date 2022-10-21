@@ -35,10 +35,14 @@ def h2(tau2, sample_rate, t_steps, b, c, w, h):
     return y.transpose(0,1).reshape(t_steps, b, c, w, h)
 
 def torch_convolve(x, y, b, c, w, h, n, t_steps):
+    ''' Not relevant for DN model, includes convolution. '''
 
     # preprocess
     x_resh = x.reshape(t_steps, b*c*w*h)
     y_resh = y.reshape(t_steps, b*c*w*h)
+
+    # reshape parameters
+    n_resh = n.reshape(c*w*h).repeat(b)
 
     output = torch.Tensor(t_steps, b*c*w*h)
     for t in range(t_steps):
@@ -50,7 +54,7 @@ def torch_convolve(x, y, b, c, w, h, n, t_steps):
         y_shift[t:, :] = y_resh[:t_steps-t, :] 
 
         # sliding dot product
-        output[t, :] = torch.tensordot(x_resh, y_shift)
+        output[t, :] = torch.pow(torch.abs(torch.tensordot(x_resh, y_shift)), n_resh)
 
     return output.reshape(t_steps, b, c, w, h)
 
@@ -60,19 +64,20 @@ def torch_cross_val(x, y, b, c, w, h, n, t_steps):
     x_resh = x.reshape(t_steps, b*c*w*h)
     y_resh = y.reshape(t_steps, b*c*w*h)
 
+    # reshape parameters
+    n_resh = n.reshape(c*w*h).repeat(b)
+
     # fix stimulus
     x_tau = F.pad(x_resh, [0, 0, t_steps, 0])
 
     output = torch.Tensor(t_steps, b*c*w*h)
     for t in range(t_steps):
-        if t == 0:
-            continue
 
         # add padding
         y_shift = F.pad(y_resh, [0, 0, t, t_steps-t])
 
         # sliding dot product
-        output[t, :] = torch.tensordot(x_tau, y_shift)
+        output[t, :] = torch.pow(torch.abs(torch.tensordot(x_tau, y_shift)), n_resh)
 
     return output.reshape(t_steps, b, c, w, h)
 
@@ -86,20 +91,19 @@ def torch_cross_val_norm(x, y, b, c, w, h, sigma, n, t_steps):
     x_tau = F.pad(x_resh, [0, 0, t_steps, 0])
 
     # reshape sigma
+    n_resh = n.reshape(c*w*h).repeat(b)
     sigma_resh = sigma.reshape(c*w*h).repeat(b)
-
+    sigma_pow_resh = torch.pow(sigma_resh, n_resh)
+    
     convnl = torch.Tensor(t_steps, b*c*w*h)
     normrsp = torch.Tensor(t_steps, b*c*w*h)
-    normrsp[0, :] = sigma_resh
     for t in range(t_steps):
-        if t == 0:
-            continue
 
         # add padding
         y_shift = F.pad(y_resh, [0, 0, t, t_steps-t])
 
         # sliding dot product
-        convnl[t, :] = torch.tensordot(x_tau, y_shift)
-        normrsp[t, :] = torch.add(convnl[t, :], sigma_resh)
+        convnl[t, :] = torch.pow(torch.abs(torch.tensordot(x_tau, y_shift)), n_resh)
+        normrsp[t, :] = torch.add(convnl[t, :], sigma_pow_resh)
 
     return convnl.reshape(t_steps, b, c, w, h), normrsp.reshape(t_steps, b, c, w, h)
