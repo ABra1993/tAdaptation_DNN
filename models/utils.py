@@ -1,9 +1,5 @@
 import torch
-# print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
-import torch.nn as nn
-import numpy as np
-import math
-import matplotlib.pyplot as plt
+print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
 import torch.nn.functional as F
 
 
@@ -19,7 +15,6 @@ def h1(tau1, t_steps, sample_rate, b, c, w, h):
     y = y/torch.sum(y)
 
     return y.transpose(0,1).reshape(t_steps, b, c, w, h)
-
 
 def h2(tau2, sample_rate, t_steps, b, c, w, h):
 

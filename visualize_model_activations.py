@@ -1,18 +1,15 @@
 # %%
 
 import torch
-print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
-import numpy as np
-from torch import optim
-import torch.nn as nn
 from torchsummary import summary
 import time
-from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
+
+print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
 
 # import required script
 from models.cnn_feedforward import cnn_feedforward
-# from models.cnn_feedforward_exp_decay import cnn_feedforward_exp_decay
+from models.cnn_feedforward_exp_decay import cnn_feedforward_exp_decay
 from models.cnn_feedforward_div_norm import cnn_feedforward_div_norm
 from utils.noiseMNIST_dataset import noiseMNIST_dataset
 from utils.functions import *
@@ -25,15 +22,11 @@ device = torch.device(str("cuda:0") if torch.cuda.is_available() else "cpu")
 startTime = time.time()
 
 # define root
-linux = True # indicates whether script is run on mac or linux
-if linux:
-    dir = '/home/amber/ownCloud/'
-else:
-    dir = '/Users/a.m.brandsuva.nl/surfdrive/'
+dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # layer names
 layers = ['sconv1', 'conv1', 'conv2', 'conv3', 'fc1']
-layer = 'sconv1'
+layer = 'conv2'
 layer_idx = layers.index(layer)
 
 # adapt = 'exp_decay'
@@ -45,25 +38,11 @@ noise = 'same'
 contrast = 'lcontrast'
 dataset = 'test'
 plot = False
+batchsiz = 1
 
-# stimulus timecourse
-t_steps = 5
-dur = 3
-start = [1]
-
-
-# initiate plot
-# fig, ax = plt.subplots(5, 5, figsize=(15, 15))
-
-
-# # stimulus timecourse
-# t_steps = 3
-# dur = 1
-# start = [0, 2]
-
-count = 0
-# for row in range(5):
-#     for column in range(5):
+t_steps = 450
+dur = 150
+start = [50, 250]
         
 # select random img
 idx = torch.randint(10000, (1,))
@@ -75,11 +54,11 @@ print(30*'#')
 
 # load stimuli
 if noise == 'no_adaptation':
-    noise_imgs = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/same_' + dataset + '_imgs_' + contrast)
-    noise_lbls = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/same_' + dataset + '_lbls_' + contrast)
+    noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/same_' + dataset + '_imgs_' + contrast)
+    noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/same_' + dataset + '_lbls_' + contrast)
 elif (noise == 'same') | (noise == 'different'):
-    noise_imgs = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + dataset + '_imgs_' + contrast)
-    noise_lbls = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + dataset + '_lbls_' + contrast)
+    noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + dataset + '_imgs_' + contrast)
+    noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + dataset + '_lbls_' + contrast)
 dt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape training set: ', noise_imgs.shape, ', ', noise_lbls.shape)
 
@@ -93,27 +72,31 @@ if plot:
     plt.show()
     plt.close()
 
+# fig = plt.figure()
+# plt.plot(noise_imgs[:, 0, 0, 0, 0], 'k')
+# plt.show()
+
 # initiate model
 if (noise == 'same') | (noise == 'different'):
     # model_exp_decay = cnn_feedforward_exp_decay(t_steps=t_steps)
-    model = cnn_feedforward_div_norm(t_steps=t_steps)
+    model = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps)
     # model_norm_div.load_state_dict(torch.load(dir+'Documents/code/nAdaptation_DNN/weights/weights_feedforward_' + adapt + '_' + noise + '_' + contrast + '.pth'))    
 elif (noise == 'no_adaptation'):
     model = cnn_feedforward(t_steps=t_steps)
-    model.load_state_dict(torch.load(dir+'Documents/code/nAdaptation_DNN/weights/weights_feedforward_same_' + contrast + '.pth'))
+    model.load_state_dict(torch.load(dir+'weights/weights_feedforward_same_' + contrast + '.pth'))
 print('Weights loaded!')
 
 fig = plt.figure()
 plt.title(idx)
-
+print('noise img shape: ', noise_imgs.shape)
 with torch.no_grad():
 
     # compute activations
     imgs_seq = []
     for t in range(t_steps):
-        imgs_seq.append(noise_imgs[t, : , :, :])
+        imgs_seq.append(noise_imgs[t, :, :, :, :]) # (t, b, c, w, h)
 
-    # forward sweep
+    # # forward sweep
     testoutp_exp_decay = model(imgs_seq, batch=False)
 
 # extract activations from proper layer
@@ -132,14 +115,10 @@ print(activations_exp_decay)
 # adjust axis
 plt.ylabel('Model output (a.u.)')
 plt.xlabel('Model timesteps')
-
 plt.legend()
 
-# increment count
-count+=1
-
 # show plot
-fig.savefig(dir+'Documents/code/nAdaptation_DNN/visualizations/activations_single_' + adapt + '_' + layer)
+fig.savefig(dir+'visualizations/activations_single_' + adapt + '_' + layer)
 plt.show()
 
 # determine time it took to run script 

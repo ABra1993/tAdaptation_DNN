@@ -5,7 +5,6 @@ import os
 
 import torch.nn as nn
 from models.module_exp_decay import module_exp_decay
-from models.module_exp_div_norm import module_div_norm
 import torch.nn.functional as F
 
 

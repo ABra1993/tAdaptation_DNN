@@ -1,17 +1,14 @@
 import torch
 # print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
-import os
-print(os.getcwd())
 import matplotlib.pyplot as plt
 
 import torch.nn as nn
-from models.module_exp_div_norm import module_div_norm
+from models.module_div_norm import module_div_norm
 import torch.nn.functional as F
-
 
 class cnn_feedforward_div_norm(nn.Module):
 
-    def __init__(self, batchsiz=1, t_steps=3):
+    def __init__(self, batchsiz=100, t_steps=3):
         super(cnn_feedforward_div_norm, self).__init__()
 
         # training variables
@@ -20,16 +17,16 @@ class cnn_feedforward_div_norm(nn.Module):
 
         # layers
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
-        self.sconv1 = module_div_norm(32, 24, 24)
+        self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32)
         
         self.relu = nn.ReLU()
         self.pool = nn.MaxPool2d(2, 2)
     
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
-        # self.sconv2 = module_div_norm(32, 8, 8)
+        # self.sconv2 = module_div_norm(8, 8, 32)
 
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
-        # self.sconv3 = module_div_norm(32, 2, 2)
+        # self.sconv3 = module_div_norm(2, 2, 32)
         self.dropout = nn.Dropout()
 
         self.fc1 = nn.Linear(in_features=128, out_features=1024)
@@ -53,14 +50,12 @@ class cnn_feedforward_div_norm(nn.Module):
         # torch.Size([100, 32, 2, 2])
         # torch.Size([100, 1024])
 
-        #print progress
-        print('-------- Timestep: ', 1)
-
         # initiate activations
-        actvsc1 = torch.zeros([self.t_steps, self.batchsiz, 32, 24, 24])
-        actvsc2 = torch.zeros([self.t_steps, self.batchsiz, 32, 8, 8])
-        actvsc3 = torch.zeros([self.t_steps, self.batchsiz, 32, 2, 2])
-        actvsfc1 = torch.zeros([self.t_steps, self.batchsiz, 1024])
+        actvsc1     = torch.zeros(self.t_steps, self.batchsiz, 32, 24, 24)
+        actvssc1    = torch.zeros(self.t_steps, self.batchsiz, 32, 24, 24)
+        actvsc2     = torch.zeros(self.t_steps, self.batchsiz, 32, 8, 8)
+        actvsc3     = torch.zeros(self.t_steps, self.batchsiz, 32, 2, 2)
+        actvsfc1    = torch.zeros(self.t_steps, self.batchsiz, 1024)
 
         # conv1
         x = self.conv1(input[0])
@@ -69,13 +64,13 @@ class cnn_feedforward_div_norm(nn.Module):
         
         # conv2
         x = self.conv2(x)
-        actvsc2[0, :, :, :] = self.relu(x)
+        actvsc2[0, :, :, :, :] = self.relu(x)
         x = self.pool(x)
 
         # conv3
         x = self.conv3(x)
         x = self.relu(x)
-        actvsc3[0, :, :, :] = x
+        actvsc3[0, :, :, :, :] = x
         
         # fc1
         x = self.dropout(x)
@@ -91,36 +86,17 @@ class cnn_feedforward_div_norm(nn.Module):
         if self.t_steps > 0:
             for t in range(1, self.t_steps):
 
-                # print progress
-                print('-------- Timestep: ', t+1)
+                # print('Timestep: ', t+1)
 
                 # conv1
                 x = self.conv1(input[t])               
-                x = self.relu(x)                # only non-negative values
-                # print('B: ', x.shape)
-                # print(x)
-                irf, norm_irf, x = self.sconv1(actvsc1[0:t, :, :, :, :], t, self.t_steps)
-                plt.figure()
-                plt.plot(torch.mean(irf[:, 0, 0, :], axis=0), label='L')
-                plt.plot(torch.mean(norm_irf[0, 0, :, :], axis=0), label='norm_irf')
-                plt.legend()
-                plt.show()
-                plt.close()
-                # print(x)
-                # x = torch.sigmoid(x)
-                # print('B: ', x.shape)
-                # if t == 2:
-                #     print(x)
-                # print(x.shape)
+                x = self.relu(x)
                 actvsc1[t, :, :, :, :] = x
-                x = self.pool(x)
-                
+                x = self.sconv1(actvsc1[0:t, :, :, :, :], t, self.t_steps)
+                x = self.pool(x) 
                 
                 # conv2
-                # print(x) # NO NaN
                 x = self.conv2(x)
-                # print(x) # NaN
-                # print('A: ', x.shape)
                 x = self.relu(x)
                 # x = self.sconv1(actvsc2[0:t, :, :, :, :], t)
                 actvsc2[t, :, :, :, :] = x
