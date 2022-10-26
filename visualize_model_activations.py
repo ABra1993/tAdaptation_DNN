@@ -26,7 +26,7 @@ dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # layer names
 layers = ['sconv1', 'conv1', 'conv2', 'conv3', 'fc1']
-layer = 'conv2'
+layer = 'sconv1'
 layer_idx = layers.index(layer)
 
 # adapt = 'exp_decay'
@@ -40,9 +40,9 @@ dataset = 'test'
 plot = False
 batchsiz = 1
 
-t_steps = 450
-dur = 150
-start = [50, 250]
+t_steps = 15
+dur = 10
+start = [2]
         
 # select random img
 idx = torch.randint(10000, (1,))
@@ -86,8 +86,8 @@ elif (noise == 'no_adaptation'):
     model.load_state_dict(torch.load(dir+'weights/weights_feedforward_same_' + contrast + '.pth'))
 print('Weights loaded!')
 
-fig = plt.figure()
-plt.title(idx)
+# fig = plt.figure()
+# plt.title(idx)
 print('noise img shape: ', noise_imgs.shape)
 with torch.no_grad():
 
@@ -99,27 +99,27 @@ with torch.no_grad():
     # # forward sweep
     testoutp_exp_decay = model(imgs_seq, batch=False)
 
-# extract activations from proper layer
-testoutp_plot_exp_decay = testoutp_exp_decay[layer_idx]
+# # extract activations from proper layer
+# testoutp_plot_exp_decay = testoutp_exp_decay[layer_idx]
 
-activations_exp_decay = torch.zeros(t_steps)
-activations = torch.zeros(t_steps)
-for t in range(t_steps):
-    activations_exp_decay[t] = torch.mean(testoutp_plot_exp_decay[t])
+# activations_exp_decay = torch.zeros(t_steps)
+# activations = torch.zeros(t_steps)
+# for t in range(t_steps):
+#     activations_exp_decay[t] = torch.mean(testoutp_plot_exp_decay[t])
+# # print(activations_exp_decay)
+
+# # plot activatios
+# plt.plot(activations_exp_decay, label=noise)
 # print(activations_exp_decay)
 
-# plot activatios
-plt.plot(activations_exp_decay, label=noise)
-print(activations_exp_decay)
+# # adjust axis
+# plt.ylabel('Model output (a.u.)')
+# plt.xlabel('Model timesteps')
+# plt.legend()
 
-# adjust axis
-plt.ylabel('Model output (a.u.)')
-plt.xlabel('Model timesteps')
-plt.legend()
-
-# show plot
-fig.savefig(dir+'visualizations/activations_single_' + adapt + '_' + layer)
-plt.show()
+# # show plot
+# fig.savefig(dir+'visualizations/activations_single_' + adapt + '_' + layer)
+# plt.show()
 
 # determine time it took to run script 
 executionTime = (time.time() - startTime)

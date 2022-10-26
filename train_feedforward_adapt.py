@@ -25,7 +25,7 @@ startTime = time.time()
 dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # track model training on neptune
-run_init = False
+run_init = True
 random_init = 1
 
 # set hypterparameters
