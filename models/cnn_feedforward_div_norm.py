@@ -29,9 +29,11 @@ class cnn_feedforward_div_norm(nn.Module):
         self.pool = nn.MaxPool2d(2, 2)
     
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
+        # P.register_parametrization(self.conv2, 'weight', Positive())
         # self.sconv2 = module_div_norm(8, 8, 32)
 
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
+        # P.register_parametrization(self.conv3, 'weight', Positive())
         # self.sconv3 = module_div_norm(2, 2, 32)
         self.dropout = nn.Dropout()
 
@@ -96,7 +98,7 @@ class cnn_feedforward_div_norm(nn.Module):
                 # conv1
                 x = self.conv1(input[t])
                 actvsc1[t, :, :, :, :] = x
-                irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r_dn = self.sconv1(actvsc1[0:t, :, :, :, :], t, self.t_steps)
+                # irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r_dn = self.sconv1(actvsc1[0:t, :, :, :, :], t, self.t_steps)
                 r_dn = self.sconv1(actvsc1[0:t, :, :, :, :], t, self.t_steps)
                 actvsc1_s[t, :, :, :, :] = r_dn
                 # r[t, :, :, :, :] = x            
@@ -157,16 +159,16 @@ class cnn_feedforward_div_norm(nn.Module):
         # plt.legend()
         # plt.show()
 
-        # # only decode last timestep
-        # actvs_decoder = self.decoder(actvsfc1[t, :, :])
+        # only decode last timestep
+        actvs_decoder = self.decoder(actvsfc1[t, :, :])
 
         # combine in dictionairy
         actvs = {}
         actvs[0] = actvsc1
-        actvs[1] = actvsc2
-        actvs[2] = actvsc3
-        actvs[3] = actvsfc1
-        actvs[4] = actvs_decoder
-
+        actvs[1] = actvsc1_s        
+        actvs[2] = actvsc2
+        actvs[3] = actvsc3
+        actvs[4] = actvsfc1
+        actvs[5] = actvs_decoder
 
         return actvs

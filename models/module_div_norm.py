@@ -203,6 +203,7 @@ class module_div_norm(nn.Module):
 
         # DN model response
         r = torch.div(input_drive, normrsp)
+        plt.plot(r[:, 0, 0, 0, 0])
         r = torch.nan_to_num(r)
         # plt.scatter(t, r[t, 0, 0, 0, 0])
         # # print(r[:, 0, 0, 0, 0])

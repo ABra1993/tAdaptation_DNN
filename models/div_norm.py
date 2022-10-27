@@ -131,13 +131,13 @@ r2 = 1
 n    = (r1 - r2) * torch.rand(c, w, h) + r2
 
 # timecourse
-t_steps = 40
+t_steps = 15
 dur = 10
-start = [5, 20]
+start = [2]
 
 x = torch.zeros([t_steps, b, c, w, h])
 for i in range(len(start)):
-    x[start[i]:start[i]+dur, :, :, :, :] = 0.25
+    x[start[i]:start[i]+dur, :, :, :, :] = 1
 
 # create timepoints based on sample rate
 sample_rate = 16

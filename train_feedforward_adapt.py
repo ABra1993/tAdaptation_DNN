@@ -34,10 +34,10 @@ batchsiz = 100
 lr = 0.001
 
 # noise pattern
-noise = 'same'
+noise = 'different'
 contrast = 'lcontrast'
-# adapt = 'exp_decay'
-adapt = 'div_norm'
+adapt = 'exp_decay'
+# adapt = 'div_norm'
 
 # load training set
 noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_imgs_' + contrast)
@@ -73,14 +73,15 @@ for i in range(random_init):
             api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ODkxNGY3NS05NGJlLTQzZDEtOGU5Yy0xMjJlYzI0YzE2YWUifQ==",
         )  # your credentials
 
-        params = {"name:": 'adaptation-' + noise + '-' + contrast + '-' + str(i), "learning_rate": lr} 
+        params = {"name:": adapt + '-' + noise + '-' + contrast + '-' + str(i), "learning_rate": lr} 
         run["parameters"] = params
 
     # initiate model
-    # if adapt == 'exp_decay':
-    # model = cnn_feedforward_exp_decay(t_steps=t_steps)
-    # elif adapt == 'norm_div':
-    model = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps)
+    if adapt == 'exp_decay':
+        print('yes')
+        model = cnn_feedforward_exp_decay(t_steps=t_steps)
+    elif adapt == 'norm_div':
+        model = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps)
     # print(summary(model))
 
     lossfunct = nn.CrossEntropyLoss()   

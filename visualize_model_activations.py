@@ -24,13 +24,20 @@ startTime = time.time()
 # define root
 dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
-# layer names
-layers = ['sconv1', 'conv1', 'conv2', 'conv3', 'fc1']
-layer = 'sconv1'
+# intrinsic suppression
+layers = ['conv1', 'conv2', 'conv3', 'fc1', 'fc2']
+layer = 'conv1'
 layer_idx = layers.index(layer)
 
 # adapt = 'exp_decay'
-adapt = 'div_norm'
+layers = ['conv1', 'conv2', 'conv3', 'fc1', 'fc2']
+layer_exp_decay = 'conv1'
+layer_idx_exp_decay = layers.index(layer_exp_decay)
+
+# adapt = 'div_norm'
+layers = ['conv1', 'sconv1', 'conv2', 'conv3', 'fc1', 'fc2']
+layer_div_norm = 'sconv1'
+layer_idx_div_norm = layers.index(layer_div_norm)
 
 # contrast and dataset
 noise_patterns = ['same', 'different', 'no_adaptation']
@@ -40,6 +47,7 @@ dataset = 'test'
 plot = False
 batchsiz = 1
 
+# timecourse
 t_steps = 15
 dur = 10
 start = [2]
@@ -72,23 +80,18 @@ if plot:
     plt.show()
     plt.close()
 
-# fig = plt.figure()
-# plt.plot(noise_imgs[:, 0, 0, 0, 0], 'k')
-# plt.show()
+# initiate models
+model = cnn_feedforward(t_steps=t_steps)
+model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + noise + '_' + contrast + '.pth'))
 
-# initiate model
-if (noise == 'same') | (noise == 'different'):
-    # model_exp_decay = cnn_feedforward_exp_decay(t_steps=t_steps)
-    model = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps)
-    # model_norm_div.load_state_dict(torch.load(dir+'Documents/code/nAdaptation_DNN/weights/weights_feedforward_' + adapt + '_' + noise + '_' + contrast + '.pth'))    
-elif (noise == 'no_adaptation'):
-    model = cnn_feedforward(t_steps=t_steps)
-    model.load_state_dict(torch.load(dir+'weights/weights_feedforward_same_' + contrast + '.pth'))
-print('Weights loaded!')
+model_exp_decay = cnn_feedforward_exp_decay(t_steps=t_steps)
+model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + noise + '_' + contrast + '.pth'))    
 
-# fig = plt.figure()
-# plt.title(idx)
-print('noise img shape: ', noise_imgs.shape)
+model_div_norm = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps)
+# model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
+
+# model prediction
+print('Input shape: ', noise_imgs.shape) 
 with torch.no_grad():
 
     # compute activations
@@ -97,29 +100,39 @@ with torch.no_grad():
         imgs_seq.append(noise_imgs[t, :, :, :, :]) # (t, b, c, w, h)
 
     # # forward sweep
-    testoutp_exp_decay = model(imgs_seq, batch=False)
+    testoutp = model(imgs_seq, batch=False)
+    testoutp_exp_decay = model_exp_decay(imgs_seq, batch=False)
+    testoutp_div_norm = model_div_norm(imgs_seq, batch=False)
 
-# # extract activations from proper layer
-# testoutp_plot_exp_decay = testoutp_exp_decay[layer_idx]
+# extract activations from proper layer
+testoutp_plot = testoutp[layer_idx]
+testoutp_plot_exp_decay = testoutp_exp_decay[layer_idx_exp_decay]
+testoutp_plot_div_norm = testoutp_div_norm[layer_idx_div_norm]
 
-# activations_exp_decay = torch.zeros(t_steps)
-# activations = torch.zeros(t_steps)
-# for t in range(t_steps):
-#     activations_exp_decay[t] = torch.mean(testoutp_plot_exp_decay[t])
-# # print(activations_exp_decay)
+# extract activations
+activations = torch.zeros(t_steps)
+activations_exp_decay = torch.zeros(t_steps)
+activations_div_norm = torch.zeros(t_steps)
+for t in range(t_steps):
+    activations[t] = torch.mean(testoutp_plot[t])
+    activations_exp_decay[t] = torch.mean(testoutp_plot_exp_decay[t])
+    activations_div_norm[t] = torch.mean(testoutp_plot_div_norm[t])
 
-# # plot activatios
-# plt.plot(activations_exp_decay, label=noise)
-# print(activations_exp_decay)
+# plot activatios
+fig = plt.figure()
 
-# # adjust axis
-# plt.ylabel('Model output (a.u.)')
-# plt.xlabel('Model timesteps')
-# plt.legend()
+plt.plot(activations, label = 'no adaptation, ' + layer)
+plt.plot(activations_exp_decay, label = 'exp. decay, ' + layer_exp_decay)
+plt.plot(activations_div_norm, label = 'div. norm., ' + layer_div_norm)
 
-# # show plot
-# fig.savefig(dir+'visualizations/activations_single_' + adapt + '_' + layer)
-# plt.show()
+# adjust axis
+plt.ylabel('Model output (a.u.)')
+plt.xlabel('Model timesteps')
+plt.legend()
+
+# show plot
+fig.savefig(dir+'visualizations/activations')
+plt.show()
 
 # determine time it took to run script 
 executionTime = (time.time() - startTime)

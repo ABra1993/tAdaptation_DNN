@@ -21,11 +21,7 @@ import neptune.new as neptune
 startTime = time.time()
 
 # define root
-linux = True # indicates whether script is run on mac or linux
-if linux:
-    dir = '/home/amber/ownCloud/'
-else:
-    dir = '/Users/a.m.brandsuva.nl/surfdrive/'
+dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # track model training on neptune
 run_init = True
@@ -41,14 +37,14 @@ noise = 'different'
 contrast = 'lcontrast'
 
 # load training set
-noise_imgs = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + 'train_imgs_' + contrast)
-noise_lbls = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + 'train_lbls_' + contrast)
+noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_imgs_' + contrast)
+noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_lbls_' + contrast)
 traindt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape training set: ', noise_imgs.shape, ', ', noise_lbls.shape)
 
 # load test set
-noise_imgs = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + 'test_imgs_' + contrast)
-noise_lbls = torch.load(dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + 'test_lbls_' + contrast)
+noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'test_imgs_' + contrast)
+noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'test_lbls_' + contrast)
 testdt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape test set: ', noise_imgs.shape, ', ', noise_lbls.shape)
 
@@ -74,7 +70,7 @@ for i in range(random_init):
             api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ODkxNGY3NS05NGJlLTQzZDEtOGU5Yy0xMjJlYzI0YzE2YWUifQ==",
         )  # your credentials
 
-        params = {"name:": 'adaptation-' + noise + '-' + contrast + '-' + str(i), "learning_rate": lr} 
+        params = {"name:": noise + '-' + contrast + '-' + str(i), "learning_rate": lr} 
         run["parameters"] = params
 
     # initiate model
@@ -104,7 +100,7 @@ for i in range(random_init):
         run.stop()
 
 # save model
-torch.save(model.state_dict(), dir+'Documents/code/nAdaptation_DNN/weights/weights_feedforward_' + noise + '_' + contrast + '.pth')
+torch.save(model.state_dict(), dir+'weights/weights_feedforward_' + noise + '_' + contrast + '.pth')
 print('Weights saved!')
 
 # save accuracies
