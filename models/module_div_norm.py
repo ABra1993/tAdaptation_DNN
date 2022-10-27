@@ -16,7 +16,7 @@ class module_div_norm(nn.Module):
         self.w = width
         self.c = channels
 
-        self.sample_rate = 1
+        self.sample_rate = 16
 
         # if height == 'none':
 
@@ -40,8 +40,8 @@ class module_div_norm(nn.Module):
         # else:
 
         # parameter settings (r1 = minimal value, r2 = maximal value)
-        r1 = 0.05
-        r2 = 0.05
+        r1 = 0.1
+        r2 = 0.1
         self.tau1    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
         # self.tau1    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
         # self.tau1    = torch.rand(self.c, self.w, self.h)
@@ -61,8 +61,8 @@ class module_div_norm(nn.Module):
         # self.sigma    = torch.rand(self.c, self.w, self.h)
         # self.sigma    = (r1 - r2) * self.sigma + r2 
 
-        r1 = 2
-        r2 = 2
+        r1 = 1
+        r2 = 1
         self.n    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
         # self.n    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
         # self.n    = torch.rand(self.c, self.w, self.h)
@@ -147,7 +147,10 @@ class module_div_norm(nn.Module):
 
     #     return normrsp.reshape(t_steps, self.b, self.c, self.w, self.h)
 
-    def forward(self, x, t, t_steps):
+    def forward(self, x, t_steps):
+
+        
+        print('Input', x[:, 0, 0, 0, 0])
 
         # compute inversed IRFs (used for cross-validation)
         irf = self.h1(t_steps)
@@ -172,25 +175,29 @@ class module_div_norm(nn.Module):
                         # convolution (cross-validation)
                         x_cur = x[:, i, j, k, l].view(1, 1, -1)
                         irf_inv_cur = irf_inv[:, i, j, k, l].view(1, 1, -1)
+                        conv1d = F.conv1d(x_cur, irf_inv_cur, padding=t_steps-1).view(-1)[0:t_steps]
                         with torch.no_grad():
-                            conv1d = F.conv1d(x_cur, irf_inv_cur, padding=t_steps).view(-1)[0:t_steps]
-                        conv_input_drive[:, i, j, k, l] = conv1d/torch.max(conv1d)
+                            conv_input_drive[:, i, j, k, l] = conv1d/torch.max(conv1d)
                         
                         # convolution (cross-validation)
                         conv_input_drive_cur = conv_input_drive[:, i, j, k, l].view(1, 1, -1)
                         irf_norm_inv_cur = irf_norm_inv[:, i, j, k, l].view(1, 1, -1)
                         with torch.no_grad():
-                            conv1d = F.conv1d(conv_input_drive_cur, irf_norm_inv_cur, padding=t_steps).view(-1)[0:t_steps]
+                            conv1d = F.conv1d(conv_input_drive_cur, irf_norm_inv_cur, padding=t_steps-1).view(-1)[0:t_steps]
                         conv_normrsp[:, i, j, k, l] = conv1d/torch.max(conv1d)
+        # print('DN created!') 
 
         # reshape parameters
         sigma_resh = self.sigma.reshape(self.c*self.w*self.h).repeat(self.b)
         n_resh = self.n.reshape(self.c*self.w*self.h).repeat(self.b)
 
+        # print('Conv_input_drive', conv_input_drive)
+        # print('Conv_input drive', conv_input_drive[:, 0, 0, 0, 0])
         conv_input_drive = conv_input_drive.reshape(t_steps, self.b*self.c*self.w*self.h)
         input_drive = torch.abs(torch.pow(conv_input_drive, n_resh)).reshape(t_steps, self.b, self.c, self.w, self.h)
         conv_input_drive = conv_input_drive.reshape(t_steps, self.b, self.c, self.w, self.h)
 
+        # print('Conv_normrsp', conv_normrsp[:, 0, 0, 0, 0])
         conv_normrsp = conv_normrsp.reshape(t_steps, self.b*self.c*self.w*self.h)
         conv_exp_normrsp = torch.abs(torch.pow(conv_normrsp, n_resh))
         # conv_exp_normrsp = conv_exp_normrsp/torch.max(conv_exp_normrsp)
@@ -203,23 +210,9 @@ class module_div_norm(nn.Module):
 
         # DN model response
         r = torch.div(input_drive, normrsp)
-        plt.plot(r[:, 0, 0, 0, 0])
-        r = torch.nan_to_num(r)
-        # plt.scatter(t, r[t, 0, 0, 0, 0])
-        # # print(r[:, 0, 0, 0, 0])
-        # print(conv_input_drive[:, 0, 0, 0, 0])
-        # print(conv_normrsp[:, 0, 0, 0, 0])
 
-        # if t == t_steps - 1:
-        #     plt.plot(irf_inv[:, 0, 0, 0, 0], label=r'$irf_{inv}$', lw=2, alpha=0.5, color='blue', linestyle='--')
-        # print(torch.max(irf_norm_inv[:, 0, 0, 0, 0]))
-        #     plt.show()
-
-        # return irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r[t, :, :, :, :]
-
-
-
-        return r[t, :, :, :, :]
+        # return irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r
+        return r
 
 
 

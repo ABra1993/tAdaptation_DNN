@@ -33,7 +33,7 @@ batchsiz = 100
 lr = 0.001
 
 # noise pattern
-noise = 'different'
+noise = 'same'
 contrast = 'lcontrast'
 
 # load training set

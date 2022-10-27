@@ -131,16 +131,21 @@ r2 = 1
 n    = (r1 - r2) * torch.rand(c, w, h) + r2
 
 # timecourse
-t_steps = 15
-dur = 10
-start = [2]
+# t_steps = 15
+# dur = 10
+# start = [2]
+
+t_steps = 3
+dur = 1
+start = [0, 2]
 
 x = torch.zeros([t_steps, b, c, w, h])
+value = [1.4402, 1.71]
 for i in range(len(start)):
-    x[start[i]:start[i]+dur, :, :, :, :] = 1
+    x[start[i]:start[i]+dur, :, :, :, :] = value[i]
 
 # create timepoints based on sample rate
-sample_rate = 16
+sample_rate = 1
 t = np.arange(t_steps)/sample_rate
 
 # compute inversed IRFs (used for cross-validation)
@@ -155,7 +160,6 @@ irf_norm_inv = torch.flip(irf_norm_inv, [0])
 irf_norm_inv = irf_norm_inv.reshape(t_steps, b, c, w, h)
 print(torch.max(irf_norm_inv[:, 0, 0, 0, 0]))
 
-
 conv_input_drive = torch.Tensor(t_steps, b, c, w, h)
 conv_normrsp = torch.Tensor(t_steps, b, c, w, h)
 for i in range(b):
@@ -165,7 +169,7 @@ for i in range(b):
 
                 # convolution (cross-validation)
                 x_cur = x[:, i, j, k, l].view(1, 1, -1)
-                irf_inv_cur = torch.flip(irf[:, i, j, k, l], (0,)).view(1, 1, -1)
+                irf_inv_cur = irf_inv[:, i, j, k, l].view(1, 1, -1)
                 conv1d = F.conv1d(x_cur, irf_inv_cur, padding=t_steps-1).view(-1)[0:t_steps]
                 conv_input_drive[:, i, j, k, l] = conv1d/torch.max(conv1d)
                 
@@ -182,6 +186,8 @@ for i in range(b):
 # compute input drive and normalisation pool
 sigma_resh = sigma.reshape(c*w*h).repeat(b)
 n_resh = n.reshape(c*w*h).repeat(b)
+
+print('Conv_input drive', conv_input_drive[:, 0, 0, 0, 0])
 
 conv_input_drive = conv_input_drive.reshape(t_steps, b*c*w*h)
 input_drive = torch.abs(torch.pow(conv_input_drive, n_resh))
@@ -259,8 +265,8 @@ for i in range(len(x[0, :, 0, 0, 0])):
 
                     # activation
                     axs[idx_row, idx_col].plot(t, x[:, i, j, k, l], 'k', label='$S/a_{c,h,w}$', lw=lw, alpha=0.7)
-                    for m in range(len(start)):
-                        axs[idx_row, idx_col].axvspan(t[start[m]], t[start[m]+dur], color='grey', alpha=0.1)
+                    # for m in range(len(start)):
+                        # axs[idx_row, idx_col].axvspan(t[start[m]], t[start[m]+dur], color='grey', alpha=0.1)
                     
                     # impulse response functiona
                     # axs[idx_row, idx_col].plot(t, irf[:, i, j, k, l], label=r'$irf$', lw=lw, alpha=0.5, color='green', linestyle='--')

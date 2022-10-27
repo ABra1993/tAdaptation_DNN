@@ -26,6 +26,7 @@ class cnn_feedforward_div_norm(nn.Module):
         self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32)
         
         self.relu = nn.ReLU()
+        self.batchnorm = nn.BatchNorm2d(32)
         self.pool = nn.MaxPool2d(2, 2)
     
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
@@ -36,6 +37,7 @@ class cnn_feedforward_div_norm(nn.Module):
         # P.register_parametrization(self.conv3, 'weight', Positive())
         # self.sconv3 = module_div_norm(2, 2, 32)
         self.dropout = nn.Dropout()
+
 
         self.fc1 = nn.Linear(in_features=128, out_features=1024)
         # self.sfc1 = module_div_norm('none', 'none', 1024)
@@ -98,16 +100,24 @@ class cnn_feedforward_div_norm(nn.Module):
                 # conv1
                 x = self.conv1(input[t])
                 actvsc1[t, :, :, :, :] = x
-                # irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r_dn = self.sconv1(actvsc1[0:t, :, :, :, :], t, self.t_steps)
-                r_dn = self.sconv1(actvsc1[0:t, :, :, :, :], t, self.t_steps)
-                actvsc1_s[t, :, :, :, :] = r_dn
-                # r[t, :, :, :, :] = x            
-                x = self.relu(r_dn)
+
+        # compute DN
+        # irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, x = self.sconv1(actvsc1, self.t_steps)
+        x = self.sconv1(actvsc1, self.t_steps)
+        actvsc1_s = x   
+
+        if self.t_steps > 0:
+            for t in range(1, self.t_steps):
+
+                # rest layer 1
+                x = self.relu(actvsc1_s[t, :, :, :, :])
+                # x = self.batchnorm(x)
                 x = self.pool(x) 
                 
                 # conv2
                 x = self.conv2(x)
                 x = self.relu(x)
+                # x = self.batchnorm(x)
                 # x = self.sconv1(actvsc2[0:t, :, :, :, :], t)
                 actvsc2[t, :, :, :, :] = x
                 x = self.pool(x)
@@ -115,6 +125,7 @@ class cnn_feedforward_div_norm(nn.Module):
                 # conv3
                 x = self.conv3(x)
                 x = self.relu(x)
+                # x = self.batchnorm(x)
                 # x = self.sconv1(actvsc3[0:t, :, :, :, :], t)
                 actvsc3[t, :, :, :, :] = x
 
@@ -128,7 +139,6 @@ class cnn_feedforward_div_norm(nn.Module):
 
                 x = self.fc1(x) 
                 actvsfc1[t, :, :] = x
-
 
         # # create figure to track DN model
         # fig = plt.figure()
@@ -148,7 +158,7 @@ class cnn_feedforward_div_norm(nn.Module):
         # axs.plot(torch.arange(self.t_steps)-self.t_steps+1, irf_norm_inv[:, i, j, k, l], label=r'$irf_{norm}$', lw=lw, alpha=0.7, color='orange', linestyle='--')
         # # axs.plot(conv_normrsp[:, i, j, k, l], label=r'$L \ast h_{2}$', lw=lw, alpha=0.7, color='orange')
 
-        # axs.plot(conv_input_drive[:, i, j, k, l], label=r'$L$', lw=lw, alpha=0.7, color='green')
+        # # axs.plot(conv_input_drive[:, i, j, k, l], label=r'$L$', lw=lw, alpha=0.7, color='green')
         # axs.plot(input_drive[:, i, j, k, l], label=r'$|L|^{n}$', lw=lw, alpha=0.7, color='blue')
         # # axs.plot(input_drive_cross[:, i, j, k, l], label=r'$|L|^{n}$', lw=lw, alpha=0.7, color='purple')
 
@@ -160,7 +170,7 @@ class cnn_feedforward_div_norm(nn.Module):
         # plt.show()
 
         # only decode last timestep
-        actvs_decoder = self.decoder(actvsfc1[t, :, :])
+        actvs_decoder = self.decoder(actvsfc1[t, :, :])[0]
 
         # combine in dictionairy
         actvs = {}

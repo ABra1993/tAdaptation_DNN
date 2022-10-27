@@ -34,10 +34,10 @@ batchsiz = 100
 lr = 0.001
 
 # noise pattern
-noise = 'different'
+noise = 'same'
 contrast = 'lcontrast'
-adapt = 'exp_decay'
-# adapt = 'div_norm'
+# adapt = 'exp_decay'
+adapt = 'div_norm'
 
 # load training set
 noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_imgs_' + contrast)
@@ -78,9 +78,8 @@ for i in range(random_init):
 
     # initiate model
     if adapt == 'exp_decay':
-        print('yes')
         model = cnn_feedforward_exp_decay(t_steps=t_steps)
-    elif adapt == 'norm_div':
+    elif adapt == 'div_norm':
         model = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps)
     # print(summary(model))
 

@@ -69,6 +69,7 @@ class cnn_feedforward(nn.Module):
             x = torch.flatten(x)
 
         actvs[3][0] = self.fc1(x)
+        # actvs[4] = actvs[3][0]
 
         if self.t_steps > 0:
             for t in range(self.t_steps-1):
@@ -96,6 +97,7 @@ class cnn_feedforward(nn.Module):
                     x = torch.flatten(x)
 
                 actvs[3][t+1] = self.fc1(x)
+                # actvs[4] = torch.cat((actvs[4],actvs[3][t+1]))
 
         actvs[4] = self.decoder(actvs[3][t+1])
 

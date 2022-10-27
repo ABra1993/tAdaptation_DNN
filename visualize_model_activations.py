@@ -25,19 +25,19 @@ startTime = time.time()
 dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # intrinsic suppression
-layers = ['conv1', 'conv2', 'conv3', 'fc1', 'fc2']
+layers = ['conv1', 'conv2', 'conv3', 'fc1']
 layer = 'conv1'
 layer_idx = layers.index(layer)
 
 # adapt = 'exp_decay'
-layers = ['conv1', 'conv2', 'conv3', 'fc1', 'fc2']
+layers_exp_decay = ['conv1', 'conv2', 'conv3', 'fc1']
 layer_exp_decay = 'conv1'
-layer_idx_exp_decay = layers.index(layer_exp_decay)
+layer_idx_exp_decay = layers_exp_decay.index(layer_exp_decay)
 
 # adapt = 'div_norm'
-layers = ['conv1', 'sconv1', 'conv2', 'conv3', 'fc1', 'fc2']
-layer_div_norm = 'sconv1'
-layer_idx_div_norm = layers.index(layer_div_norm)
+layers_div_norm = ['conv1', 'sconv1', 'conv2', 'conv3', 'fc1']
+layer_div_norm = 'conv1'
+layer_idx_div_norm = layers_div_norm.index(layer_div_norm)
 
 # contrast and dataset
 noise_patterns = ['same', 'different', 'no_adaptation']
@@ -47,10 +47,24 @@ dataset = 'test'
 plot = False
 batchsiz = 1
 
+colors = ['crimson', 'deepskyblue', 'orange']
+linestyles = ['dotted', (0, (5, 10)), 'dashed', 'dashdot', (0, (3, 5, 1, 5, 1, 5))]
+
 # timecourse
-t_steps = 15
-dur = 10
-start = [2]
+t_steps = 150
+dur = 40
+start = [20, 90]
+
+# t_steps = 15
+# dur = 10
+# start = [2]
+
+# t_steps = 3
+# dur = 1
+# start = [0, 2]
+
+# initiate figure
+fig, axs = plt.subplots(1, 4, figsize=(20, 4))
         
 # select random img
 idx = torch.randint(10000, (1,))
@@ -89,9 +103,10 @@ model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_
 
 model_div_norm = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps)
 # model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
+print('Models loaded!')
 
 # model prediction
-print('Input shape: ', noise_imgs.shape) 
+print('Input shape: ', noise_imgs.shape, '\n') 
 with torch.no_grad():
 
     # compute activations
@@ -104,34 +119,85 @@ with torch.no_grad():
     testoutp_exp_decay = model_exp_decay(imgs_seq, batch=False)
     testoutp_div_norm = model_div_norm(imgs_seq, batch=False)
 
-# extract activations from proper layer
-testoutp_plot = testoutp[layer_idx]
-testoutp_plot_exp_decay = testoutp_exp_decay[layer_idx_exp_decay]
-testoutp_plot_div_norm = testoutp_div_norm[layer_idx_div_norm]
+# feedforward
+for i in range(len(layers)):
 
-# extract activations
-activations = torch.zeros(t_steps)
-activations_exp_decay = torch.zeros(t_steps)
-activations_div_norm = torch.zeros(t_steps)
-for t in range(t_steps):
-    activations[t] = torch.mean(testoutp_plot[t])
-    activations_exp_decay[t] = torch.mean(testoutp_plot_exp_decay[t])
-    activations_div_norm[t] = torch.mean(testoutp_plot_div_norm[t])
+    # extract activations
+    activations = torch.zeros(t_steps)
 
-# plot activatios
-fig = plt.figure()
+    for t in range(t_steps):
+        activations[t] = torch.mean(testoutp[i][t])
 
-plt.plot(activations, label = 'no adaptation, ' + layer)
-plt.plot(activations_exp_decay, label = 'exp. decay, ' + layer_exp_decay)
-plt.plot(activations_div_norm, label = 'div. norm., ' + layer_div_norm)
+    # plot activations
+    axs[0].plot(activations, color=colors[0], linestyle=linestyles[i], label=layers[i])
+    
+    # adjust axis
+    axs[0].set_title('Feedforward')
+    axs[0].set_ylabel('Model output (a.u.)')
+    axs[0].set_xlabel('Model timesteps')
+    axs[0].legend()
+
+    if i == len(layers) - 1:
+        print(activations)
+
+# feedforward with exp. decay.
+for i in range(len(layers_exp_decay)):
+
+    # extract activations
+    activations = torch.zeros(t_steps)
+
+    for t in range(t_steps):
+        activations[t] = torch.mean(testoutp_exp_decay[i][t])
+
+    # plot activations
+    axs[1].plot(activations, color=colors[1], linestyle=linestyles[i], label=layers_exp_decay[i])
+    
+    # adjust axis
+    axs[1].set_title('Feedforward with exp. decay')
+    axs[1].set_xlabel('Model timesteps')
+    axs[1].legend()
+
+    if i == len(layers_exp_decay) - 1:
+        print(activations)
+
+# feedforward wiht div. norm.
+for i in range(len(layers_div_norm)):
+
+    # extract activations
+    activations = torch.zeros(t_steps)
+
+    for t in range(t_steps):
+        activations[t] = torch.mean(testoutp_div_norm[i][t])
+
+    # plot activations
+    axs[2].plot(activations, color=colors[2], linestyle=linestyles[i], label=layers_div_norm[i])
+
+    # adjust axis
+    axs[2].set_title('Feedforward with div. norm.')
+    axs[2].set_xlabel('Model timesteps')
+    axs[2].legend()
+
+    if i == len(layers_div_norm) - 1:
+        print(activations)
+
+# plot readouts
+readout = list(testoutp.values())[-1]
+readout_exp_decay = list(testoutp_exp_decay.values())[-1]
+readout_div_norm = list(testoutp_div_norm.values())[-1]
+
+# plot
+axs[3].axvspan(noise_lbls - 0.5 + 1, noise_lbls + 0.5 + 1, color='grey', alpha=0.2, label='Ground truth')
+axs[3].scatter(torch.arange(10)+1, readout, label = 'no adaptation', color=colors[0])
+axs[3].scatter(torch.arange(10)+1, readout_exp_decay, label = 'exp. decay', color=colors[1])
+axs[3].scatter(torch.arange(10)+1, readout_div_norm, label = 'div. norm.', color=colors[2])
 
 # adjust axis
-plt.ylabel('Model output (a.u.)')
-plt.xlabel('Model timesteps')
-plt.legend()
+axs[3].set_title('Decoder')
+axs[3].set_xlabel('Classes')
+axs[3].legend(bbox_to_anchor=(1, 0.5))
 
 # show plot
-fig.savefig(dir+'visualizations/activations')
+fig.savefig(dir+'visualizations/activations_readouts')
 plt.show()
 
 # determine time it took to run script 

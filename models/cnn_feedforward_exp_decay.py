@@ -142,6 +142,6 @@ class cnn_feedforward_exp_decay(nn.Module):
                 actvs[3][t+1] = torch.subtract(x, s_beta_updt)
 
         # only decode last timestep
-        actvs[4] = self.decoder(actvs[3][t+1])
+        actvs[4] = self.decoder(actvs[3][t+1])[0]
 
         return actvs
