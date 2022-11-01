@@ -81,6 +81,8 @@ class cnn_feedforward(nn.Module):
 
                 # conv2
                 x = self.conv2(x)
+                # if t == 1:
+                #     print(x)
                 actvs[1][t+1] = self.relu(x)
                 x = self.pool(x)
 

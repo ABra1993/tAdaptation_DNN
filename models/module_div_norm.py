@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 
 class module_div_norm(nn.Module):
     
-    def __init__(self, batchsiz, height, width, channels):
+    def __init__(self, batchsiz, height, width, channels, sample_rate, t_steps):
         super().__init__()
+
+        
 
         # set dimensions
         self.b = batchsiz
@@ -16,7 +18,10 @@ class module_div_norm(nn.Module):
         self.w = width
         self.c = channels
 
-        self.sample_rate = 16
+        self.sample_rate = sample_rate
+        self.t_steps = t_steps
+
+        self.r = torch.Tensor(self.t_steps, self.b, self.c, self.h, self.w)
 
         # if height == 'none':
 
@@ -44,57 +49,117 @@ class module_div_norm(nn.Module):
         r2 = 0.1
         self.tau1    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
         # self.tau1    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
-        # self.tau1    = torch.rand(self.c, self.w, self.h)
-        # self.tau1    = (r1 - r2) * self.tau1 + r2   
 
         r1 = 0.1
         r2 = 0.1
         self.tau2    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
         # self.tau2    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
-        # self.tau2    = torch.rand(self.c, self.w, self.h)
-        # self.tau2    = (r1 - r2) * self.tau2 + r2 
 
-        r1 = 0.1
-        r2 = 0.1
+        r1 = 0.01
+        r2 = 0.01
         self.sigma   = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
         # self.sigma   = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
-        # self.sigma    = torch.rand(self.c, self.w, self.h)
-        # self.sigma    = (r1 - r2) * self.sigma + r2 
 
         r1 = 1
         r2 = 1
         self.n    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
         # self.n    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
-        # self.n    = torch.rand(self.c, self.w, self.h)
-        # self.n    = (r1 - r2) * self.n + r2
 
-
-    def h1(self, t_steps):
+    def h1(self):
 
         # preprocess tensors
-        input = torch.arange(t_steps)/self.sample_rate
+        input = torch.zeros(self.t_steps, requires_grad=True)
+        input = torch.arange(self.t_steps)/self.sample_rate
         input = input.repeat(self.b*self.c*self.w*self.h, 1)
-        tau1_resh = torch.transpose(self.tau1.reshape(self.c*self.w*self.h).repeat(self.b).repeat(t_steps, 1), 0, 1)
+        tau1_resh = torch.transpose(self.tau1.reshape(self.c*self.w*self.h).repeat(self.b).repeat(self.t_steps, 1), 0, 1)
         
         # compute impulse response function
-        y = input * torch.exp(-input/tau1_resh)
+        y = torch.Tensor(input * torch.exp(-input/tau1_resh))
         # y = y/torch.sum(y)
 
-        return y.transpose(0,1).reshape(t_steps, self.b, self.c, self.w, self.h)
+        return y.transpose(0,1).reshape(self.t_steps, self.b, self.c, self.w, self.h)
 
-    def h2(self, t_steps):
+    def h2(self):
 
         # preprocess tensors
-        input = torch.arange(t_steps)/self.sample_rate
+        input = torch.arange(self.t_steps)/self.sample_rate
         input = input.repeat(self.b*self.c*self.w*self.h, 1)
-        tau2_resh = torch.transpose(self.tau2.reshape(self.c*self.w*self.h).repeat(self.b).repeat(t_steps, 1), 0, 1)
+        tau2_resh = torch.transpose(self.tau2.reshape(self.c*self.w*self.h).repeat(self.b).repeat(self.t_steps, 1), 0, 1)
 
         # compute impulse response function
         y = torch.exp(-input/tau2_resh)
         # y = y/torch.sum(y)
 
-        return y.transpose(0,1).reshape(t_steps, self.b, self.c, self.w, self.h)    
-            
+        return y.transpose(0,1).reshape(self.t_steps, self.b, self.c, self.w, self.h)    
+
+    def forward(self, x):
+
+        # compute inversed IRFs (used for cross-validation)
+        irf = self.h1()
+        irf_inv = irf.reshape(self.t_steps, self.b*self.c*self.w*self.h)
+        irf_inv = torch.flip(irf_inv, [0])
+        irf_inv = irf_inv.reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        # print(irf_inv)
+
+        irf_norm = self.h2()
+        irf_norm_inv = irf_norm.reshape(self.t_steps, self.b*self.c*self.w*self.h)
+        irf_norm_inv = torch.flip(irf_norm_inv, [0])
+        irf_norm_inv = irf_norm_inv.reshape(self.t_steps, self.b, self.c, self.w, self.h)        
+        # print(irf_norm_inv)
+
+        conv_input_drive = torch.Tensor(self.t_steps, self.b, self.c, self.w, self.h)
+        conv_normrsp = torch.Tensor(self.t_steps, self.b, self.c, self.w, self.h)
+        for i in range(self.b):
+            for j in range(self.c):
+                for k in range(self.w):
+                    for l in range(self.h):
+
+                        # convolution (cross-validation)
+                        x_cur = x[:, i, j, k, l].view(1, 1, -1)
+                        irf_inv_cur = irf_inv[:, i, j, k, l].view(1, 1, -1)
+                        # with torch.no_grad():
+                        conv1d_input_drive = F.conv1d(x_cur, irf_inv_cur, padding=self.t_steps)
+                        conv1d_input_drive_resh = conv1d_input_drive.view(-1)                        
+                        conv_input_drive[:, i, j, k, l] = conv1d_input_drive_resh[0:self.t_steps]#/torch.max(conv1d)
+
+                        # convolution (cross-validation)
+                        conv_input_drive_cur = conv_input_drive[:, i, j, k, l].view(1, 1, -1).clone()
+                        irf_norm_inv_cur = irf_norm_inv[:, i, j, k, l].view(1, 1, -1)
+                        # with torch.no_grad():
+                        conv1d_normrsp = F.conv1d(conv_input_drive_cur, irf_norm_inv_cur, padding=self.t_steps)
+                        conv1d_normrsp_resh = conv1d_normrsp.view(-1)
+                        conv_normrsp[:, i, j, k, l] = conv1d_normrsp_resh[0:self.t_steps]#/torch.max(conv1d)
+                        # print(conv_normrsp)
+
+        # reshape parameters and tensors
+        sigma_resh = self.sigma.reshape(self.c*self.w*self.h).repeat(self.b)
+        n_resh = self.n.reshape(self.c*self.w*self.h).repeat(self.b)
+        conv_input_drive = conv_input_drive.reshape(self.t_steps, self.b*self.c*self.w*self.h)
+        conv_normrsp = conv_normrsp.reshape(self.t_steps, self.b*self.c*self.w*self.h)
+        
+        # compute input drive
+        input_drive = torch.abs(torch.pow(conv_input_drive, n_resh)).reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        
+        # compute normalisation response
+        conv_exp_normrsp = torch.abs(torch.pow(conv_normrsp, n_resh))        
+        normrsp = torch.add(conv_exp_normrsp, sigma_resh)  
+        
+        # reshape tensors to original size
+        conv_input_drive = conv_input_drive.reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        conv_normrsp = conv_normrsp.reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        normrsp = normrsp.reshape(self.t_steps, self.b, self.c, self.w, self.h)
+
+        # DN model response
+        self.r = torch.div(input_drive, normrsp)
+
+        return self.r
+        # return irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r
+
+
+    # # compute input drive and normalisation pool
+    # input_drive_cross = self.torch_cross_val(x, irf_inv, t, t_steps)
+    # normrsp = self.torch_cross_val_norm(input_drive_cross, irf_norm_inv, t, t_steps)
+
     # def torch_cross_val(self, x, y, t, t_steps):
 
     #     # preprocess
@@ -146,73 +211,6 @@ class module_div_norm(nn.Module):
     #         normrsp[tmp, :] = torch.add(convnl[tmp, :], sigma_pow_resh)
 
     #     return normrsp.reshape(t_steps, self.b, self.c, self.w, self.h)
-
-    def forward(self, x, t_steps):
-
-        
-        print('Input', x[:, 0, 0, 0, 0])
-
-        # compute inversed IRFs (used for cross-validation)
-        irf = self.h1(t_steps)
-        irf_inv = irf.reshape(t_steps, self.b*self.c*self.w*self.h)
-        irf_inv = torch.flip(irf_inv, [0])
-        irf_inv = irf_inv.reshape(t_steps, self.b, self.c, self.w, self.h)
-        # print(irf_inv)
-
-        irf_norm = self.h2(t_steps)
-        irf_norm_inv = irf_norm.reshape(t_steps, self.b*self.c*self.w*self.h)
-        irf_norm_inv = torch.flip(irf_norm_inv, [0])
-        irf_norm_inv = irf_norm_inv.reshape(t_steps, self.b, self.c, self.w, self.h)        
-        # print(irf_norm_inv)
-
-        conv_input_drive = torch.Tensor(t_steps, self.b, self.c, self.w, self.h)
-        conv_normrsp = torch.Tensor(t_steps, self.b, self.c, self.w, self.h)
-        for i in range(self.b):
-            for j in range(self.c):
-                for k in range(self.w):
-                    for l in range(self.h):
-
-                        # convolution (cross-validation)
-                        x_cur = x[:, i, j, k, l].view(1, 1, -1)
-                        irf_inv_cur = irf_inv[:, i, j, k, l].view(1, 1, -1)
-                        conv1d = F.conv1d(x_cur, irf_inv_cur, padding=t_steps-1).view(-1)[0:t_steps]
-                        with torch.no_grad():
-                            conv_input_drive[:, i, j, k, l] = conv1d/torch.max(conv1d)
-                        
-                        # convolution (cross-validation)
-                        conv_input_drive_cur = conv_input_drive[:, i, j, k, l].view(1, 1, -1)
-                        irf_norm_inv_cur = irf_norm_inv[:, i, j, k, l].view(1, 1, -1)
-                        with torch.no_grad():
-                            conv1d = F.conv1d(conv_input_drive_cur, irf_norm_inv_cur, padding=t_steps-1).view(-1)[0:t_steps]
-                        conv_normrsp[:, i, j, k, l] = conv1d/torch.max(conv1d)
-        # print('DN created!') 
-
-        # reshape parameters
-        sigma_resh = self.sigma.reshape(self.c*self.w*self.h).repeat(self.b)
-        n_resh = self.n.reshape(self.c*self.w*self.h).repeat(self.b)
-
-        # print('Conv_input_drive', conv_input_drive)
-        # print('Conv_input drive', conv_input_drive[:, 0, 0, 0, 0])
-        conv_input_drive = conv_input_drive.reshape(t_steps, self.b*self.c*self.w*self.h)
-        input_drive = torch.abs(torch.pow(conv_input_drive, n_resh)).reshape(t_steps, self.b, self.c, self.w, self.h)
-        conv_input_drive = conv_input_drive.reshape(t_steps, self.b, self.c, self.w, self.h)
-
-        # print('Conv_normrsp', conv_normrsp[:, 0, 0, 0, 0])
-        conv_normrsp = conv_normrsp.reshape(t_steps, self.b*self.c*self.w*self.h)
-        conv_exp_normrsp = torch.abs(torch.pow(conv_normrsp, n_resh))
-        # conv_exp_normrsp = conv_exp_normrsp/torch.max(conv_exp_normrsp)
-        normrsp = torch.add(conv_exp_normrsp, sigma_resh).reshape(t_steps, self.b, self.c, self.w, self.h)
-        conv_normrsp = conv_normrsp.reshape(t_steps, self.b, self.c, self.w, self.h)
-    
-        # # compute input drive and normalisation pool
-        # input_drive_cross = self.torch_cross_val(x, irf_inv, t, t_steps)
-        # normrsp = self.torch_cross_val_norm(input_drive_cross, irf_norm_inv, t, t_steps)
-
-        # DN model response
-        r = torch.div(input_drive, normrsp)
-
-        # return irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r
-        return r
 
 
 

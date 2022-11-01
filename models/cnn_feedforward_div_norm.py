@@ -12,7 +12,7 @@ import torch.nn.utils.parametrize as P
 
 class cnn_feedforward_div_norm(nn.Module):
 
-    def __init__(self, batchsiz=100, t_steps=3):
+    def __init__(self, batchsiz=100, t_steps=3, sample_rate=1):
         super(cnn_feedforward_div_norm, self).__init__()
 
         # training variables
@@ -22,8 +22,8 @@ class cnn_feedforward_div_norm(nn.Module):
         # layers
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
         P.register_parametrization(self.conv1, 'weight', Positive())
-        P.register_parametrization(self.conv1, 'bias', Zero())
-        self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32)
+        # P.register_parametrization(self.conv1, 'bias', Positive())
+        self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32, sample_rate, self.t_steps)
         
         self.relu = nn.ReLU()
         self.batchnorm = nn.BatchNorm2d(32)
@@ -102,9 +102,7 @@ class cnn_feedforward_div_norm(nn.Module):
                 actvsc1[t, :, :, :, :] = x
 
         # compute DN
-        # irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, x = self.sconv1(actvsc1, self.t_steps)
-        x = self.sconv1(actvsc1, self.t_steps)
-        actvsc1_s = x   
+        actvsc1_s = self.sconv1(actvsc1)
 
         if self.t_steps > 0:
             for t in range(1, self.t_steps):
@@ -118,7 +116,6 @@ class cnn_feedforward_div_norm(nn.Module):
                 x = self.conv2(x)
                 x = self.relu(x)
                 # x = self.batchnorm(x)
-                # x = self.sconv1(actvsc2[0:t, :, :, :, :], t)
                 actvsc2[t, :, :, :, :] = x
                 x = self.pool(x)
 
@@ -126,7 +123,6 @@ class cnn_feedforward_div_norm(nn.Module):
                 x = self.conv3(x)
                 x = self.relu(x)
                 # x = self.batchnorm(x)
-                # x = self.sconv1(actvsc3[0:t, :, :, :, :], t)
                 actvsc3[t, :, :, :, :] = x
 
                 # fc1
@@ -170,7 +166,7 @@ class cnn_feedforward_div_norm(nn.Module):
         # plt.show()
 
         # only decode last timestep
-        actvs_decoder = self.decoder(actvsfc1[t, :, :])[0]
+        actvs_decoder = self.decoder(actvsfc1[t, :, :])
 
         # combine in dictionairy
         actvs = {}
