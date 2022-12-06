@@ -30,7 +30,7 @@ random_init = 1
 # set hypterparameters
 numepchs = 1
 batchsiz = 100
-lr = 0.001
+lr = 0.0001
 
 # noise pattern
 noise = 'same'
@@ -105,6 +105,10 @@ print('Weights saved!')
 
 # save accuracies
 torch.save(accuracies, 'accu/feedforward_' + noise + '_' + contrast)
+
+print(30*'--')
+print('Mean accuracy: ', torch.round(torch.mean(accuracies), decimals=2))
+print(30*'--')
 
 # determine time it took to run script 
 executionTime = (time.time() - startTime)

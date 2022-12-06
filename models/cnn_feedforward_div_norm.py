@@ -1,5 +1,6 @@
 import torch
 # print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import matplotlib.pyplot as plt
 from models.Positive import Positive
 from models.Zero import Zero
@@ -8,11 +9,9 @@ from models.module_div_norm import module_div_norm
 import torch.nn.functional as F
 import torch.nn.utils.parametrize as P
 
-
-
 class cnn_feedforward_div_norm(nn.Module):
 
-    def __init__(self, batchsiz=100, t_steps=3, sample_rate=1):
+    def __init__(self, tau1_init, tau2_init, sigma_init, batchsiz=100, t_steps=3, sample_rate=1):
         super(cnn_feedforward_div_norm, self).__init__()
 
         # training variables
@@ -20,20 +19,23 @@ class cnn_feedforward_div_norm(nn.Module):
         self.batchsiz = batchsiz
 
         # layers
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
-        P.register_parametrization(self.conv1, 'weight', Positive())
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5, bias=False)
+        nn.init.xavier_uniform_(self.conv1.weight)
+        # P.register_parametrization(self.conv1, 'weight', Positive())
         # P.register_parametrization(self.conv1, 'bias', Positive())
-        self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32, sample_rate, self.t_steps)
+        self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32, sample_rate, self.t_steps, tau1_init, tau2_init, sigma_init)
         
         self.relu = nn.ReLU()
         self.batchnorm = nn.BatchNorm2d(32)
         self.pool = nn.MaxPool2d(2, 2)
     
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
+        nn.init.xavier_uniform_(self.conv2.weight)
         # P.register_parametrization(self.conv2, 'weight', Positive())
         # self.sconv2 = module_div_norm(8, 8, 32)
 
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
+        nn.init.xavier_uniform_(self.conv3.weight)
         # P.register_parametrization(self.conv3, 'weight', Positive())
         # self.sconv3 = module_div_norm(2, 2, 32)
         self.dropout = nn.Dropout()
@@ -68,44 +70,47 @@ class cnn_feedforward_div_norm(nn.Module):
         actvsc3     = torch.zeros(self.t_steps, self.batchsiz, 32, 2, 2)
         actvsfc1    = torch.zeros(self.t_steps, self.batchsiz, 1024)
 
-        # conv1
-        x = self.conv1(input[0])
-        actvsc1[0, :, :, :, :] = self.relu(x)
-        x = self.pool(x)
+        # # conv1
+        # x = self.conv1(input[0])
+        # actvsc1[0, :, :, :, :] = self.relu(x)
+        # x = self.pool(x)
         
-        # conv2
-        x = self.conv2(x)
-        actvsc2[0, :, :, :, :] = self.relu(x)
-        x = self.pool(x)
+        # # conv2
+        # x = self.conv2(x)
+        # actvsc2[0, :, :, :, :] = self.relu(x)
+        # x = self.pool(x)
 
-        # conv3
-        x = self.conv3(x)
-        x = self.relu(x)
-        actvsc3[0, :, :, :, :] = x
+        # # conv3
+        # x = self.conv3(x)
+        # x = self.relu(x)
+        # actvsc3[0, :, :, :, :] = x
         
-        # fc1
-        x = self.dropout(x)
+        # # fc1
+        # x = self.dropout(x)
 
-        if batch:  
-            x = x.view(x.size(0), -1)
-        else:
-            x = torch.flatten(x)
+        # if batch:  
+        #     x = x.view(x.size(0), -1)
+        # else:
+        #     x = torch.flatten(x)
 
-        x = self.fc1(x)
-        actvsfc1[0, :, :] = x # shape: batch_size x 1024
+        # x = self.fc1(x)
+        # actvsfc1[0, :, :] = x # shape: batch_size x 1024
 
+        # compute static input
         if self.t_steps > 0:
-            for t in range(1, self.t_steps):
+            for t in range(0, self.t_steps):
 
                 # conv1
                 x = self.conv1(input[t])
-                actvsc1[t, :, :, :, :] = x
+                actvsc1[t, :, :, :, :] = self.relu(x)
+                # actvsc1[t, :, :, :, :] = x
 
         # compute DN
         actvsc1_s = self.sconv1(actvsc1)
 
+        # compute for layers conv2 and beyond
         if self.t_steps > 0:
-            for t in range(1, self.t_steps):
+            for t in range(0, self.t_steps):
 
                 # rest layer 1
                 x = self.relu(actvsc1_s[t, :, :, :, :])
@@ -166,7 +171,7 @@ class cnn_feedforward_div_norm(nn.Module):
         # plt.show()
 
         # only decode last timestep
-        actvs_decoder = self.decoder(actvsfc1[t, :, :])
+        actvs_decoder = self.decoder(actvsfc1[self.t_steps-1, :, :])
 
         # combine in dictionairy
         actvs = {}

@@ -44,17 +44,17 @@ layers_plot_exp_decay = ['conv1', 'conv2', 'conv3', 'fc1']
 layers_div_norm = ['conv1', 'conv2', 'conv3', 'fc1']
 layers_plot_div_norm = ['fc1']
 # layers_plot_div_norm = ['conv1', 'sconv1', 'conv2', 'conv3', 'fc1']
-layers_plot_div_norm = ['conv1', 'conv2', 'conv3']
+layers_plot_div_norm = ['conv1', 'conv2', 'conv3', 'fc1']
 # layers_plot_div_norm = 'conv1'
 # layer_idx_div_norm = layers_div_norm.index(layer_div_norm)
 
 # contrast and dataset
-noise_patterns = ['same', 'different', 'no_adaptation']
-noise = 'same'
 contrast = 'lcontrast'
 dataset = 'test'
 plot = False
 batchsiz = 1
+
+sample_rate = 32
 
 colors = ['crimson', 'deepskyblue', 'orange']
 
@@ -67,75 +67,53 @@ alpha = np.linspace(0, 1, len(layers))
 alpha_exp_decay = np.linspace(0, 1, len(layers_exp_decay))
 alpha_div_norm = np.linspace(0, 1, len(layers_div_norm))
 
-# timecourse
-sample_rate = 40
-t_steps = 160
-dur = 80
-start = [40]
-
-# t_steps = 15
-# dur = 10
-# start = [2]
-
-# sample_rate = 3
-# t_steps = 9
-# dur = 3
-# start = [0, 6]
-
 # initiate figure
-fig, axs = plt.subplots(1, 4, figsize=(20, 4))
+fig, axs = plt.subplots(1, 5, figsize=(24, 4))
         
 # select random img
 idx = torch.randint(10000, (1,))
 print('Index image number: ', idx)
 
-print(30*'#')
-print(noise)
-print(30*'#')
-
 # load stimuli
-if noise == 'no_adaptation':
-    noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/same_' + dataset + '_imgs_' + contrast)
-    noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/same_' + dataset + '_lbls_' + contrast)
-elif (noise == 'same') | (noise == 'different'):
-    noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + dataset + '_imgs_' + contrast)
-    noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + dataset + '_lbls_' + contrast)
-dt = noiseMNIST_dataset(noise_imgs, noise_lbls)
-print('Shape training set: ', noise_imgs.shape, ', ', noise_lbls.shape)
+imgs = torch.load(dir+'datasets/noiseMNIST/data/' + dataset + '_imgs_' + contrast)
+lbls = torch.load(dir+'datasets/noiseMNIST/data/' + dataset + '_lbls_' + contrast)
 
-# create stimuli across timepoints
-noise_imgs, noise_lbls = create_stim_timecourse(dt, idx, t_steps, dur, start, noise_lbls)
-if plot:
-    fig2, axs = plt.subplots(1, t_steps)
-    for t in range(t_steps):    
-        axs[t].imshow(noise_imgs[t, :, :, :].reshape(28, 28, 1), cmap='gray', vmin=0, vmax=1)
-        axs[t].set_title('t =  ' + str(t+1), fontsize=5)
-    plt.show()
-    plt.close()
+dt = noiseMNIST_dataset(imgs, lbls)
+print('Shape training set: ', imgs.shape, ', ', lbls.shape)
+t_steps = len(imgs[0, :, 0, 0, 0])
+
+# plot image
+axs[0].imshow(imgs[idx, 0, :, :, :].squeeze(), cmap='gray')
+
+# define input shape
+input_shape = dt[0][0].shape
+w = input_shape[2]
+h = input_shape[3]
+c = input_shape[1]
 
 # initiate models
 model = cnn_feedforward(t_steps=t_steps)
-# model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + noise + '_' + contrast + '.pth'))
+model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + 'same' + '_' + contrast + '.pth'))
 
 model_exp_decay = cnn_feedforward_exp_decay(t_steps=t_steps)
-# model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + noise + '_' + contrast + '.pth'))    
+model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + contrast + '.pth'))    
 
-# model_div_norm = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
-# model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
+model_div_norm = cnn_feedforward_div_norm(torch.Tensor([0.4585]), torch.Tensor([0.2736]), torch.Tensor([0.2164]), batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
+model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + contrast + '.pth'))    
 
-model_div_norm = cnn_feedforward_div_norm_rec(t_steps=t_steps)
+# model_div_norm = cnn_feedforward_div_norm_rec(t_steps=t_steps)
 # model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
 
 print('Models loaded!')
 
 # model prediction
-print('Input shape: ', noise_imgs.shape, '\n') 
+print('Input shape: ', imgs.shape, '\n')
 with torch.no_grad():
 
-    # compute activations
+    # prepare image sequence
     imgs_seq = []
     for t in range(t_steps):
-        imgs_seq.append(noise_imgs[t, :, :, :, :]) # (t, b, c, w, h)
+        imgs_seq.append(imgs[idx, t, :, :, :])
 
     # # forward sweep
     testoutp = model(imgs_seq, batch=False)
@@ -158,13 +136,13 @@ for i in range(len(layers)):
             activations[t] = torch.mean(testoutp[i][t])
 
         # plot activations
-        axs[0].plot(activations, color=cmap(alpha[i]), label=layers[i], lw=lw) #, alpha=alpha[i] , linestyle=linestyles[i])
+        axs[1].plot(activations, color=cmap(alpha[i]), label=layers[i], lw=lw) #, alpha=alpha[i] , linestyle=linestyles[i])
         
     # adjust axis
-    axs[0].set_title('Feedforward')
-    axs[0].set_ylabel('Model output (a.u.)')
-    axs[0].set_xlabel('Model timesteps')
-    axs[0].legend()
+    axs[1].set_title('Feedforward')
+    axs[1].set_ylabel('Model output (a.u.)')
+    axs[1].set_xlabel('Model timesteps')
+    axs[1].legend()
     # axs[0].set_ylim(0, 0.20)
 
     # if i == len(layers) - 1:
@@ -182,12 +160,12 @@ for i in range(len(layers_exp_decay)):
             activations[t] = torch.mean(testoutp_exp_decay[i][t])
 
         # plot activations
-        axs[1].plot(activations, color=cmap(alpha_exp_decay[i]), label=layers_exp_decay[i], lw=lw) # , alpha=alpha_exp_decay[i], linestyle=linestyles[i])
+        axs[2].plot(activations, color=cmap(alpha_exp_decay[i]), label=layers_exp_decay[i], lw=lw) # , alpha=alpha_exp_decay[i], linestyle=linestyles[i])
         
     # adjust axis
-    axs[1].set_title('Feedforward with exp. decay')
-    axs[1].set_xlabel('Model timesteps')
-    axs[1].legend()
+    axs[2].set_title('Feedforward with exp. decay')
+    axs[2].set_xlabel('Model timesteps')
+    axs[2].legend()
     # axs[1].set_ylim(0, 0.20)
 
     # if i == len(layers_exp_decay) - 1:
@@ -206,12 +184,12 @@ for i in range(len(layers_div_norm)):
             # activations[t] = testoutp_div_norm[i][t][0, 0, 0, 0]
 
         # plot activations
-        axs[2].plot(activations, color=cmap(alpha_div_norm[i]), label=layers_div_norm[i], lw=lw) #, alpha=alpha_div_norm[i]) , linestyle=linestyles[i])
+        axs[3].plot(activations, color=cmap(alpha_div_norm[i]), label=layers_div_norm[i], lw=lw) #, alpha=alpha_div_norm[i]) , linestyle=linestyles[i])
 
     # adjust axis
-    axs[2].set_title('Feedforward with div. norm.')
-    axs[2].set_xlabel('Model timesteps')
-    axs[2].legend()
+    axs[3].set_title('Feedforward with div. norm.')
+    axs[3].set_xlabel('Model timesteps')
+    axs[3].legend()
     # axs[2].set_ylim(0, 0.20)
 
     # if i == len(layers_div_norm) - 1:
@@ -223,19 +201,32 @@ readout_exp_decay = list(testoutp_exp_decay.values())[-1]
 readout_div_norm = list(testoutp_div_norm.values())[-1]
 
 # plot
-axs[3].axvspan(noise_lbls - 0.5 + 1, noise_lbls + 0.5 + 1, color='grey', alpha=0.2, label='Ground truth')
-axs[3].scatter(torch.arange(10)+1, readout, label = 'no adaptation', color=colors[0])
-axs[3].scatter(torch.arange(10)+1, readout_exp_decay, label = 'exp. decay', color=colors[1])
-axs[3].scatter(torch.arange(10)+1, readout_div_norm, label = 'div. norm.', color=colors[2])
+axs[4].axvspan(lbls[idx] - 0.5, lbls[idx] + 0.5, color='grey', alpha=0.2, label='Ground truth')
+axs[4].scatter(torch.arange(10), readout, label = 'no adaptation', color=colors[0])
+axs[4].scatter(torch.arange(10), readout_exp_decay, label = 'exp. decay', color=colors[1])
+axs[4].scatter(torch.arange(10), readout_div_norm, label = 'div. norm.', color=colors[2])
 
 # adjust axis
-axs[3].set_title('Decoder')
-axs[3].set_xlabel('Classes')
-axs[3].legend(bbox_to_anchor=(1, 0.5))
+axs[4].set_xticks(np.arange(10))
+axs[4].set_title('Decoder')
+axs[4].set_xlabel('Classes')
+axs[4].legend(bbox_to_anchor=(1, 0.5))
 
 # show plot
-fig.savefig(dir+'visualizations/activations_readouts')
+fig.savefig(dir+'visualizations/activations_or_readouts')
 # plt.show()
+
+# print classes
+print(""" 0 T-shirt/top
+1 Trouser
+2 Pullover
+3 Dress
+4 Coat
+5 Sandal
+6 Shirt
+7 Sneaker
+8 Bag
+9 Ankle boot """)
 
 # determine time it took to run script 
 executionTime = (time.time() - startTime)

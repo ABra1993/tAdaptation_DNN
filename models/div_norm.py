@@ -15,6 +15,7 @@ def h1(tau1, t_steps, sample_rate, b, c, w, h):
     # preprocess tensors
     input = torch.arange(t_steps)/sample_rate
     y = input * torch.exp(-input/tau1)
+    y = y/torch.sum(y)
 
     return y
 
@@ -23,6 +24,7 @@ def h2(tau2, t_steps, sample_rate, b, c, w, h):
     # preprocess tensors
     input = torch.arange(t_steps)/sample_rate
     y = torch.exp(-input/tau2)
+    y = y/torch.sum(y)
 
     return y
 
@@ -33,25 +35,25 @@ w = 2 # height
 h = 2 # width
 
 # parameter settings (r1 = minimal value, r2 = maximal value)
-r1 = 0.1
-r2 = 0.1
-tau1    = (r1 - r2) * torch.rand(c, w, h) + r2
-tau1 = 0.1
+# r1 = 0.05
+# r2 = 0.05
+# tau1    = (r1 - r2) * torch.rand(c, w, h) + r2
+tau1 = 0.5
 
-r1 = 0.1
-r2 = 0.1
-tau2    = (r1 - r2) * torch.rand(c, w, h) + r2
+# r1 = 0.1
+# r2 = 0.1
+# tau2    = (r1 - r2) * torch.rand(c, w, h) + r2
 tau2 = 0.1
 
-r1 = 0.1
-r2 = 0.1
-sigma   = (r1 - r2) * torch.rand(c, w, h) + r2
+# r1 = 0.1
+# r2 = 0.1
+# sigma   = (r1 - r2) * torch.rand(c, w, h) + r2
 sigma = 0.1
 
-r1 = 2
-r2 = 2
-n    = (r1 - r2) * torch.rand(c, w, h) + r2
-n = 1.5
+# r1 = 2
+# r2 = 2
+# n    = (r1 - r2) * torch.rand(c, w, h) + r2
+n = 1
 
 # timecourse
 sample_rate = 16
@@ -65,7 +67,7 @@ start = [20, 50]
 # start = [0, 2]
 
 x = torch.zeros([t_steps, b, c, w, h])
-value = [1, 1]
+value = [1, 2]
 for i in range(len(start)):
     x[start[i]:start[i]+dur, :, :, :, :] = value[i]
 

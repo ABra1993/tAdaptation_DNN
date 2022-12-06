@@ -7,10 +7,8 @@ import matplotlib.pyplot as plt
 
 class module_div_norm(nn.Module):
     
-    def __init__(self, batchsiz, height, width, channels, sample_rate, t_steps):
+    def __init__(self, batchsiz, height, width, channels, sample_rate, t_steps, tau1_init, tau2_init, sigma_init):
         super().__init__()
-
-        
 
         # set dimensions
         self.b = batchsiz
@@ -21,199 +19,66 @@ class module_div_norm(nn.Module):
         self.sample_rate = sample_rate
         self.t_steps = t_steps
 
-        self.r = torch.Tensor(self.t_steps, self.b, self.c, self.h, self.w)
+        # self.tau1        = nn.Parameter(torch.rand(self.c, self.w, self.h), requires_grad=False)
+        # self.tau2        = nn.Parameter(torch.rand(self.c, self.w, self.h), requires_grad=False)
+        # self.sigma       = nn.Parameter(torch.rand(self.c, self.w, self.h), requires_grad=False)
 
-        # if height == 'none':
-
-        #     # parameter settings (r1 = minimal value, r2 = maximal value)
-        #     r1 = 0.05
-        #     r2 = 0.1
-        #     self.tau1    = nn.Parameter((r1 - r2) * torch.rand(self.c) + r2)
-
-        #     r1 = 0.1
-        #     r2 = 0.2
-        #     self.tau2    = nn.Parameter((r1 - r2) * torch.rand(self.c) + r2)
-
-        #     r1 = 0.8
-        #     r2 = 0.12
-        #     self.sigma   = nn.Parameter((r1 - r2) * torch.rand(self.c) + r2)
-
-        #     r1 = 1
-        #     r2 = 2
-        #     self.n    = nn.Parameter((r1 - r2) * torch.rand(self.c) + r2)
-        
-        # else:
-
-        # parameter settings (r1 = minimal value, r2 = maximal value)
-        r1 = 0.1
-        r2 = 0.1
-        self.tau1    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
-        # self.tau1    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
-
-        r1 = 0.1
-        r2 = 0.1
-        self.tau2    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
-        # self.tau2    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
-
-        r1 = 0.01
-        r2 = 0.01
-        self.sigma   = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
-        # self.sigma   = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
-
-        r1 = 1
-        r2 = 1
-        self.n    = (r1 - r2) * torch.rand(self.c, self.w, self.h) + r2
-        # self.n    = nn.Parameter((r1 - r2) * torch.rand(self.c, self.w, self.h) + r2)
+        self.tau1        = nn.Parameter(tau1_init, requires_grad=False)
+        self.tau2        = nn.Parameter(tau2_init, requires_grad=False)
+        self.sigma       = nn.Parameter(sigma_init, requires_grad=False)
 
     def h1(self):
 
         # preprocess tensors
-        input = torch.zeros(self.t_steps, requires_grad=True)
         input = torch.arange(self.t_steps)/self.sample_rate
-        input = input.repeat(self.b*self.c*self.w*self.h, 1)
-        tau1_resh = torch.transpose(self.tau1.reshape(self.c*self.w*self.h).repeat(self.b).repeat(self.t_steps, 1), 0, 1)
-        
-        # compute impulse response function
-        y = torch.Tensor(input * torch.exp(-input/tau1_resh))
-        # y = y/torch.sum(y)
+        y = input * torch.exp(-input/self.tau1)
+        y = y/torch.sum(y)
 
-        return y.transpose(0,1).reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        return y
 
     def h2(self):
 
         # preprocess tensors
         input = torch.arange(self.t_steps)/self.sample_rate
-        input = input.repeat(self.b*self.c*self.w*self.h, 1)
-        tau2_resh = torch.transpose(self.tau2.reshape(self.c*self.w*self.h).repeat(self.b).repeat(self.t_steps, 1), 0, 1)
+        y = torch.exp(torch.divide(-input, self.tau2))
+        y = y/torch.sum(y)
 
-        # compute impulse response function
-        y = torch.exp(-input/tau2_resh)
-        # y = y/torch.sum(y)
-
-        return y.transpose(0,1).reshape(self.t_steps, self.b, self.c, self.w, self.h)    
+        return y
 
     def forward(self, x):
 
-        # compute inversed IRFs (used for cross-validation)
+        # compute impulse response functions
         irf = self.h1()
-        irf_inv = irf.reshape(self.t_steps, self.b*self.c*self.w*self.h)
-        irf_inv = torch.flip(irf_inv, [0])
-        irf_inv = irf_inv.reshape(self.t_steps, self.b, self.c, self.w, self.h)
-        # print(irf_inv)
+        irf_inv = torch.flip(irf, [-1]).unsqueeze(0).unsqueeze(0)
 
         irf_norm = self.h2()
-        irf_norm_inv = irf_norm.reshape(self.t_steps, self.b*self.c*self.w*self.h)
-        irf_norm_inv = torch.flip(irf_norm_inv, [0])
-        irf_norm_inv = irf_norm_inv.reshape(self.t_steps, self.b, self.c, self.w, self.h)        
-        # print(irf_norm_inv)
+        irf_norm_inv = torch.flip(irf_norm, [-1]).unsqueeze(0).unsqueeze(0)
 
-        conv_input_drive = torch.Tensor(self.t_steps, self.b, self.c, self.w, self.h)
-        conv_normrsp = torch.Tensor(self.t_steps, self.b, self.c, self.w, self.h)
-        for i in range(self.b):
-            for j in range(self.c):
-                for k in range(self.w):
-                    for l in range(self.h):
+        # reshape 
+        x = x.reshape(self.t_steps, self.b*self.c*self.w*self.h).transpose(0,1)
 
-                        # convolution (cross-validation)
-                        x_cur = x[:, i, j, k, l].view(1, 1, -1)
-                        irf_inv_cur = irf_inv[:, i, j, k, l].view(1, 1, -1)
-                        # with torch.no_grad():
-                        conv1d_input_drive = F.conv1d(x_cur, irf_inv_cur, padding=self.t_steps)
-                        conv1d_input_drive_resh = conv1d_input_drive.view(-1)                        
-                        conv_input_drive[:, i, j, k, l] = conv1d_input_drive_resh[0:self.t_steps]#/torch.max(conv1d)
+        # convolution input drive
+        conv_input_drive = F.conv1d(x.unsqueeze(1), irf_inv, padding=self.t_steps-1)
+        conv_input_drive_clip = conv_input_drive[:, 0, 0:self.t_steps]
+        # input_drive = torch.pow(torch.abs(conv_input_drive_clip), self.n)
+        # input_drive = torch.pow(conv_input_drive_clip, self.n)
 
-                        # convolution (cross-validation)
-                        conv_input_drive_cur = conv_input_drive[:, i, j, k, l].view(1, 1, -1).clone()
-                        irf_norm_inv_cur = irf_norm_inv[:, i, j, k, l].view(1, 1, -1)
-                        # with torch.no_grad():
-                        conv1d_normrsp = F.conv1d(conv_input_drive_cur, irf_norm_inv_cur, padding=self.t_steps)
-                        conv1d_normrsp_resh = conv1d_normrsp.view(-1)
-                        conv_normrsp[:, i, j, k, l] = conv1d_normrsp_resh[0:self.t_steps]#/torch.max(conv1d)
-                        # print(conv_normrsp)
+        # convolution normalisation response
+        conv_normrsp = F.conv1d(conv_input_drive_clip.unsqueeze(1), irf_norm_inv, padding=self.t_steps-1)
+        conv_normrsp_clip = conv_normrsp[:, 0, 0:self.t_steps]
+        # normrsp = torch.add(torch.pow(torch.abs(conv_normrsp_clip), self.n), self.sigma)
+        # normrsp = torch.add(torch.pow(conv_normrsp_clip, self.n), self.sigma)
+        normrsp = torch.add(conv_normrsp_clip, self.sigma)
 
-        # reshape parameters and tensors
-        sigma_resh = self.sigma.reshape(self.c*self.w*self.h).repeat(self.b)
-        n_resh = self.n.reshape(self.c*self.w*self.h).repeat(self.b)
-        conv_input_drive = conv_input_drive.reshape(self.t_steps, self.b*self.c*self.w*self.h)
-        conv_normrsp = conv_normrsp.reshape(self.t_steps, self.b*self.c*self.w*self.h)
-        
-        # compute input drive
-        input_drive = torch.abs(torch.pow(conv_input_drive, n_resh)).reshape(self.t_steps, self.b, self.c, self.w, self.h)
-        
-        # compute normalisation response
-        conv_exp_normrsp = torch.abs(torch.pow(conv_normrsp, n_resh))        
-        normrsp = torch.add(conv_exp_normrsp, sigma_resh)  
-        
-        # reshape tensors to original size
-        conv_input_drive = conv_input_drive.reshape(self.t_steps, self.b, self.c, self.w, self.h)
-        conv_normrsp = conv_normrsp.reshape(self.t_steps, self.b, self.c, self.w, self.h)
-        normrsp = normrsp.reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        # reshape
+        # x = x.squeeze(1).transpose(0, 1).reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        conv_input_drive = conv_input_drive_clip.transpose(0, 1).reshape(self.t_steps, self.b, self.c, self.w, self.h)
+        normrsp = normrsp.transpose(0, 1).reshape(self.t_steps, self.b, self.c, self.w, self.h)
 
         # DN model response
-        self.r = torch.div(input_drive, normrsp)
+        r = torch.div(conv_input_drive, normrsp)
 
-        return self.r
-        # return irf_inv, irf_norm_inv, conv_input_drive, input_drive, conv_normrsp, conv_exp_normrsp, normrsp, r
-
-
-    # # compute input drive and normalisation pool
-    # input_drive_cross = self.torch_cross_val(x, irf_inv, t, t_steps)
-    # normrsp = self.torch_cross_val_norm(input_drive_cross, irf_norm_inv, t, t_steps)
-
-    # def torch_cross_val(self, x, y, t, t_steps):
-
-    #     # preprocess
-    #     x_resh = x.reshape(t, self.b*self.c*self.w*self.h)
-    #     y_resh = y.reshape(t_steps, self.b*self.c*self.w*self.h)
-
-    #     # reshape parameters
-    #     n_resh = self.n.reshape(self.c*self.w*self.h).repeat(self.b)
-
-    #     # fix stimulus
-    #     x_tau = F.pad(x_resh, [0, 0, t_steps, t_steps-t])
-
-    #     output = torch.Tensor(t_steps, self.b*self.c*self.w*self.h)
-    #     for tmp in range(t_steps):
-
-    #         # add padding
-    #         y_shift = F.pad(y_resh, [0, 0, tmp, t_steps-tmp])
-
-    #         # sliding dot product
-    #         # output[tmp, :] = torch.pow(torch.abs(torch.tensordot(x_tau, y_shift)), n_resh)
-    #         output[tmp, :] = torch.pow(torch.tensordot(x_tau, y_shift), n_resh)
-
-    #     return output.reshape(t_steps, self.b, self.c, self.w, self.h)
-
-    # def torch_cross_val_norm(self, x, y, t, t_steps):
-
-    #     # preprocess
-    #     x_resh = x.reshape(t_steps, self.b*self.c*self.w*self.h)
-    #     y_resh = y.reshape(t_steps, self.b*self.c*self.w*self.h)
-
-    #     # fix stimulus
-    #     x_tau = F.pad(x_resh, [0, 0, t_steps, 0])
-
-    #     # reshape sigma
-    #     n_resh = self.n.reshape(self.c*self.w*self.h).repeat(self.b)
-    #     sigma_resh = self.sigma.reshape(self.c*self.w*self.h).repeat(self.b)
-    #     sigma_pow_resh = torch.pow(sigma_resh, n_resh)
-        
-    #     convnl = torch.Tensor(t_steps, self.b*self.c*self.w*self.h)
-    #     normrsp = torch.Tensor(t_steps, self.b*self.c*self.w*self.h)
-    #     for tmp in range(t_steps):
-
-    #         # add padding
-    #         y_shift = F.pad(y_resh, [0, 0, tmp, t_steps-tmp])
-
-    #         # sliding dot product
-    #         # convnl[tmp, :] = torch.pow(torch.abs(torch.tensordot(x_tau, y_shift)), n_resh)
-    #         convnl[tmp, :] = torch.pow(torch.tensordot(x_tau, y_shift), n_resh)
-    #         normrsp[tmp, :] = torch.add(convnl[tmp, :], sigma_pow_resh)
-
-    #     return normrsp.reshape(t_steps, self.b, self.c, self.w, self.h)
-
-
-
+        return r
 
 
 
