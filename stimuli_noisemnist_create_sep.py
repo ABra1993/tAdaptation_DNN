@@ -18,11 +18,7 @@ from models.cnn_feedforward_exp_decay import cnn_feedforward_exp_decay
 from utils.functions import *
 
 # define root
-linux = True # indicates whether script is run on mac or linux
-if linux:
-    dir = '/home/amber/ownCloud/'
-else:
-    dir = '/Users/a.m.brandsuva.nl/surfdrive/'
+dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # set contrast
 # contrast = 'lcontrast'
@@ -31,9 +27,9 @@ else:
 # dur = 8
 # start = [5, 18]
 
-t_steps = 3
-dur = 1
-start = [0, 2]
+t_steps = 10
+dur = 3
+start = [1, 7]
 
 def create_stimuli(data, noise, contrast):
 
@@ -99,8 +95,8 @@ def create_stimuli(data, noise, contrast):
             print('Created all timesteps for image: ', i+1)
 
     # save 
-    torch.save(noise_imgs, dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + data + '_imgs_' + contrast)
-    torch.save(noise_lbls, dir+'Documents/code/nAdaptation_DNN/datasets/noiseMNIST/data/' + noise + '_' + data + '_lbls_' + contrast)
+    torch.save(noise_imgs, dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + data + '_imgs_' + contrast)
+    torch.save(noise_lbls, dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + data + '_lbls_' + contrast)
 
 create_stimuli('train', 'same', 'lcontrast')
 create_stimuli('test', 'same', 'lcontrast')

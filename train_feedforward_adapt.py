@@ -26,8 +26,8 @@ startTime = time.time()
 dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # track model training on neptune
-run_init = False
-random_init = 1
+run_init = True
+random_init = 10
 
 # set hypterparameters
 numepchs = 1
@@ -35,44 +35,36 @@ batchsiz = 100
 lr = 0.001
 sample_rate = 32
 
+# define number of timesteps
+t_steps = 10
+print('\nNumber of timesteps: ', t_steps)
+
 # noise pattern
 noise = 'same'
 contrast = 'lcontrast'
 # adapt = 'exp_decay'
 adapt = 'div_norm'
 
+train_tau1 = False
+train_tau2 = False
+train_sigma = False
+
 # load training set
-noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_imgs_' + contrast)
-noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_lbls_' + contrast)
+noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'train_imgs_' + contrast)
+noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'train_lbls_' + contrast)
 traindt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape training set: ', noise_imgs.shape, ', ', noise_lbls.shape)
 
 # load test set
-noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'test_imgs_' + contrast)
-noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'test_lbls_' + contrast)
+noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'test_imgs_' + contrast)
+noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'test_lbls_' + contrast)
 testdt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape test set: ', noise_imgs.shape, ', ', noise_lbls.shape)
-
-# print classes
-""" 0 T-shirt/top
-1 Trouser
-2 Pullover
-3 Dress
-4 Coat
-5 Sandal
-6 Shirt
-7 Sneaker
-8 Bag
-9 Ankle boot """
 
 # dataloader
 ldrs = load_data(traindt, testdt, batch_size=batchsiz, shuffle=True, num_workers=1)
 print('\nNumber of training batches: ', len(ldrs['train']), '\n')
 print('\nNumber of test batches: ', len(ldrs['test']), '\n')
-
-# determine number of timesteps
-t_steps = len(noise_imgs[0, :, 0, 0])
-print('\nNumber of timesteps: ', t_steps)
 
 # initiate pandas dataframe to store initial values
 df = pd.DataFrame(columns=['Init', 'tau1_init', 'tau2_init', 'sigma_init'])
@@ -99,7 +91,7 @@ for i in range(random_init):
             api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ODkxNGY3NS05NGJlLTQzZDEtOGU5Yy0xMjJlYzI0YzE2YWUifQ==",
         )  # your credentials
 
-        params = {"name:": adapt + '-' + noise + '-' + contrast + '-' + str(i), "learning_rate": lr} 
+        params = {"name:": adapt + '-' + '-' + contrast + '-' + str(i), "learning_rate": lr, 'train_tau1': train_tau1, 'train_tau2': train_tau2, 'train_sigma': train_sigma} 
         run["parameters"] = params
 
     # initiate model
@@ -107,9 +99,6 @@ for i in range(random_init):
         model = cnn_feedforward_exp_decay(t_steps=t_steps)
     elif adapt == 'div_norm':
         model = cnn_feedforward_div_norm(tau1_init, tau2_init, sigma_init, batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
-        # model = cnn_feedforward_div_norm(t_steps=t_steps)
-
-    # print(summary(model))
 
     lossfunct = nn.CrossEntropyLoss()   
     optimizer = optim.Adam(model.parameters(), lr=lr)   

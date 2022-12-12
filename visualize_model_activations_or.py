@@ -16,6 +16,7 @@ from models.cnn_feedforward_div_norm_rec import cnn_feedforward_div_norm_rec
 from utils.noiseMNIST_dataset import noiseMNIST_dataset
 from utils.functions import *
 import neptune.new as neptune
+from torchsummary import summary
 
 # add model to devic
 device = torch.device(str("cuda:0") if torch.cuda.is_available() else "cpu") 
@@ -93,13 +94,17 @@ c = input_shape[1]
 
 # initiate models
 model = cnn_feedforward(t_steps=t_steps)
-model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + 'same' + '_' + contrast + '.pth'))
+# model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + 'same' + '_' + contrast + '.pth'))
+print(summary(model))
 
 model_exp_decay = cnn_feedforward_exp_decay(t_steps=t_steps)
-model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + contrast + '.pth'))    
+# model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + contrast + '.pth'))    
+print(summary(model_exp_decay))
+
 
 model_div_norm = cnn_feedforward_div_norm(torch.Tensor([0.4585]), torch.Tensor([0.2736]), torch.Tensor([0.2164]), batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
-model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + contrast + '.pth'))    
+# model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + contrast + '.pth'))    
+print(summary(model_div_norm))
 
 # model_div_norm = cnn_feedforward_div_norm_rec(t_steps=t_steps)
 # model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    

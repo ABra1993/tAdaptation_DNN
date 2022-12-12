@@ -29,6 +29,10 @@ dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 run_init = True
 random_init = 30
 
+train_tau1 = True
+train_tau2 = True
+train_sigma = True
+
 # set hypterparameters
 numepchs = 1
 batchsiz = 100
@@ -86,7 +90,7 @@ for i in range(random_init):
             api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ODkxNGY3NS05NGJlLTQzZDEtOGU5Yy0xMjJlYzI0YzE2YWUifQ==",
         )  # your credentials
 
-        params = {"name:": adapt + '-' + '-' + contrast + '-' + str(i), "learning_rate": lr} 
+        params = {"name:": adapt + '-' + '-' + contrast + '-' + str(i), "learning_rate": lr, 'train_tau1': train_tau1, 'train_tau2': train_tau2, 'train_sigma': train_sigma} 
         run["parameters"] = params
 
     # initiate model
@@ -94,6 +98,7 @@ for i in range(random_init):
         model = cnn_feedforward_exp_decay(t_steps=t_steps)
     elif adapt == 'div_norm':
         model = cnn_feedforward_div_norm(tau1_init, tau2_init, sigma_init, batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
+    
     lossfunct = nn.CrossEntropyLoss()   
     optimizer = optim.Adam(model.parameters(), lr=lr)   
 

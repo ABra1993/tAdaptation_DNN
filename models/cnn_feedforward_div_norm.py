@@ -19,14 +19,14 @@ class cnn_feedforward_div_norm(nn.Module):
         self.batchsiz = batchsiz
 
         # layers
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5, bias=False)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
         nn.init.xavier_uniform_(self.conv1.weight)
         # P.register_parametrization(self.conv1, 'weight', Positive())
         # P.register_parametrization(self.conv1, 'bias', Positive())
         self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32, sample_rate, self.t_steps, tau1_init, tau2_init, sigma_init)
         
         self.relu = nn.ReLU()
-        self.batchnorm = nn.BatchNorm2d(32)
+        # self.batchnorm = nn.BatchNorm2d(32)
         self.pool = nn.MaxPool2d(2, 2)
     
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
