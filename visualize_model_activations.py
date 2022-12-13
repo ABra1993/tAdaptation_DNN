@@ -58,6 +58,10 @@ batchsiz = 1
 
 colors = ['crimson', 'deepskyblue', 'orange']
 
+# define number of timesteps
+t_steps = 10
+print('\nNumber of timesteps: ', t_steps)
+
 linestyles = ['dotted', (0, (5, 10)), 'dashed', 'dashdot', (0, (3, 5, 1, 5, 1, 5))]
 linestyles_exp_decay = ['dotted', (0, (5, 10)), 'dashed', 'dashdot', (0, (3, 5, 1, 5, 1, 5))]
 linestyles_div_norm = ['dotted', (0, (3, 5, 1, 5, 1, 5)), (0, (5, 10)), 'dashed', 'dashdot']
@@ -67,11 +71,9 @@ alpha = np.linspace(0, 1, len(layers))
 alpha_exp_decay = np.linspace(0, 1, len(layers_exp_decay))
 alpha_div_norm = np.linspace(0, 1, len(layers_div_norm))
 
-# timecourse
-sample_rate = 40
-t_steps = 160
-dur = 80
-start = [40]
+# define number of timesteps
+t_steps = 10
+print('\nNumber of timesteps: ', t_steps)
 
 # t_steps = 15
 # dur = 10
@@ -103,28 +105,29 @@ elif (noise == 'same') | (noise == 'different'):
 dt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape training set: ', noise_imgs.shape, ', ', noise_lbls.shape)
 
-# create stimuli across timepoints
-noise_imgs, noise_lbls = create_stim_timecourse(dt, idx, t_steps, dur, start, noise_lbls)
-if plot:
-    fig2, axs = plt.subplots(1, t_steps)
-    for t in range(t_steps):    
-        axs[t].imshow(noise_imgs[t, :, :, :].reshape(28, 28, 1), cmap='gray', vmin=0, vmax=1)
-        axs[t].set_title('t =  ' + str(t+1), fontsize=5)
-    plt.show()
-    plt.close()
+# # create stimuli across timepoints
+# noise_imgs, noise_lbls = create_stim_timecourse(dt, idx, t_steps, dur, start, noise_lbls)
+# if plot:
+#     fig2, axs = plt.subplots(1, t_steps)
+#     for t in range(t_steps):    
+#         axs[t].imshow(noise_imgs[t, :, :, :].reshape(28, 28, 1), cmap='gray', vmin=0, vmax=1)
+#         axs[t].set_title('t =  ' + str(t+1), fontsize=5)
+#     plt.show()
+#     plt.close()
+
+tau1_init = torch.Tensor([0.0075])
+tau2_init = torch.Tensor([0.3741])
+sigma_init = torch.Tensor([0.1711])
 
 # initiate models
 model = cnn_feedforward(t_steps=t_steps)
-# model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + noise + '_' + contrast + '.pth'))
+model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + noise + '_' + contrast + '.pth'))
 
 model_exp_decay = cnn_feedforward_exp_decay(t_steps=t_steps)
-# model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + noise + '_' + contrast + '.pth'))    
+model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + noise + '_' + contrast + '.pth'))    
 
-# model_div_norm = cnn_feedforward_div_norm(batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
-# model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
-
-model_div_norm = cnn_feedforward_div_norm_rec(t_steps=t_steps)
-# model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
+model_div_norm = cnn_feedforward_div_norm(tau1_init, tau2_init, sigma_init, batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
+model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
 
 print('Models loaded!')
 

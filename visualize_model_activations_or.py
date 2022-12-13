@@ -49,12 +49,16 @@ layers_plot_div_norm = ['conv1', 'conv2', 'conv3', 'fc1']
 # layers_plot_div_norm = 'conv1'
 # layer_idx_div_norm = layers_div_norm.index(layer_div_norm)
 
+# define number of timesteps
+t_steps = 10
+print('\nNumber of timesteps: ', t_steps)
+
 # contrast and dataset
 contrast = 'lcontrast'
 dataset = 'test'
 plot = False
 batchsiz = 1
-
+noise = 'same'
 sample_rate = 32
 
 colors = ['crimson', 'deepskyblue', 'orange']
@@ -76,7 +80,7 @@ idx = torch.randint(10000, (1,))
 print('Index image number: ', idx)
 
 # load stimuli
-imgs = torch.load(dir+'datasets/noiseMNIST/data/' + dataset + '_imgs_' + contrast)
+imgs = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'train_imgs_' + contrast)
 lbls = torch.load(dir+'datasets/noiseMNIST/data/' + dataset + '_lbls_' + contrast)
 
 dt = noiseMNIST_dataset(imgs, lbls)
@@ -84,7 +88,7 @@ print('Shape training set: ', imgs.shape, ', ', lbls.shape)
 t_steps = len(imgs[0, :, 0, 0, 0])
 
 # plot image
-axs[0].imshow(imgs[idx, 0, :, :, :].squeeze(), cmap='gray')
+axs[0].imshow(imgs[idx, 8, :, :, :].squeeze(), cmap='gray')
 
 # define input shape
 input_shape = dt[0][0].shape
@@ -94,16 +98,16 @@ c = input_shape[1]
 
 # initiate models
 model = cnn_feedforward(t_steps=t_steps)
-# model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + 'same' + '_' + contrast + '.pth'))
+model.load_state_dict(torch.load(dir+'weights/weights_feedforward_' + 'same' + '_' + contrast + '.pth'))
 print(summary(model))
 
 model_exp_decay = cnn_feedforward_exp_decay(t_steps=t_steps)
-# model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + contrast + '.pth'))    
+model_exp_decay.load_state_dict(torch.load(dir+'weights/weights_feedforward_exp_decay_' + noise + '_' + contrast + '.pth'))    
 print(summary(model_exp_decay))
 
 
 model_div_norm = cnn_feedforward_div_norm(torch.Tensor([0.4585]), torch.Tensor([0.2736]), torch.Tensor([0.2164]), batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
-# model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + contrast + '.pth'))    
+model_div_norm.load_state_dict(torch.load(dir+'weights/weights_feedforward_div_norm_' + noise + '_' + contrast + '.pth'))    
 print(summary(model_div_norm))
 
 # model_div_norm = cnn_feedforward_div_norm_rec(t_steps=t_steps)

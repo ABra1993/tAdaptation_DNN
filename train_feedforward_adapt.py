@@ -27,7 +27,7 @@ dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # track model training on neptune
 run_init = True
-random_init = 10
+random_init = 1
 
 # set hypterparameters
 numepchs = 1
@@ -40,10 +40,10 @@ t_steps = 10
 print('\nNumber of timesteps: ', t_steps)
 
 # noise pattern
-noise = 'same'
+noise = 'different'
 contrast = 'lcontrast'
-# adapt = 'exp_decay'
-adapt = 'div_norm'
+adapt = 'exp_decay'
+# adapt = 'div_norm'
 
 train_tau1 = False
 train_tau2 = False
@@ -77,9 +77,12 @@ for i in range(random_init):
     print('Random init: ', i+1)
 
     # choose initial values DN model
-    tau1_init = torch.rand(1)
-    tau2_init = torch.rand(1)
-    sigma_init = torch.rand(1)
+    # tau1_init = torch.rand(1)
+    # tau2_init = torch.rand(1)
+    # sigma_init = torch.rand(1)
+    tau1_init = torch.Tensor([0.0075])
+    tau2_init = torch.Tensor([0.3741])
+    sigma_init = torch.Tensor([0.1711])
 
     df.loc[i, 'Init'] = 1
     df.loc[i, ['tau1_init', 'tau2_init', 'sigma_init']] = [tau1_init, tau2_init, sigma_init]

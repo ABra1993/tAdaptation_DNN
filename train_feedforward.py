@@ -32,19 +32,23 @@ numepchs = 1
 batchsiz = 100
 lr = 0.0001
 
+# define number of timesteps
+t_steps = 10
+print('\nNumber of timesteps: ', t_steps)
+
 # noise pattern
-noise = 'same'
+noise = 'different'
 contrast = 'lcontrast'
 
 # load training set
-noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_imgs_' + contrast)
-noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'train_lbls_' + contrast)
+noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'train_imgs_' + contrast)
+noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'train_lbls_' + contrast)
 traindt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape training set: ', noise_imgs.shape, ', ', noise_lbls.shape)
 
 # load test set
-noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'test_imgs_' + contrast)
-noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + noise + '_' + 'test_lbls_' + contrast)
+noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'test_imgs_' + contrast)
+noise_lbls = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' +noise + '_' + 'test_lbls_' + contrast)
 testdt = noiseMNIST_dataset(noise_imgs, noise_lbls)
 print('Shape test set: ', noise_imgs.shape, ', ', noise_lbls.shape)
 
