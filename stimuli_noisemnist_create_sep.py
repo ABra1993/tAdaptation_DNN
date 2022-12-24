@@ -28,18 +28,18 @@ dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 # start = [5, 18]
 
 t_steps = 10
-dur = 3
+dur = [5, 3]
 start = [1, 7]
 
 def create_stimuli(data, noise, contrast):
 
     # encode timtesteps
     t_steps_label = torch.zeros(t_steps)
-    t_steps_label[start[0]:start[0]+dur] = 1
+    t_steps_label[start[0]:start[0]+dur[0]] = 1
     if noise == 'same':
-        t_steps_label[start[1]:start[1]+dur] = 2
+        t_steps_label[start[1]:start[1]+dur[1]] = 2
     elif noise == 'different':
-        t_steps_label[start[1]:start[1]+dur] = 3
+        t_steps_label[start[1]:start[1]+dur[1]] = 3
 
     # download data
     if data == 'train':

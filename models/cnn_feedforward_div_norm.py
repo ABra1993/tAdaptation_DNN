@@ -11,12 +11,13 @@ import torch.nn.utils.parametrize as P
 
 class cnn_feedforward_div_norm(nn.Module):
 
-    def __init__(self, tau1_init, tau2_init, sigma_init, batchsiz=100, t_steps=3, sample_rate=1):
+    def __init__(self, tau1_init, tau2_init, sigma_init, batchsiz=64, t_steps=3, sample_rate=1):
         super(cnn_feedforward_div_norm, self).__init__()
 
         # training variables
         self.t_steps = t_steps
         self.batchsiz = batchsiz
+        self.sample_rate = sample_rate
 
         # layers
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
@@ -40,14 +41,12 @@ class cnn_feedforward_div_norm(nn.Module):
         # self.sconv3 = module_div_norm(2, 2, 32)
         self.dropout = nn.Dropout()
 
-
         self.fc1 = nn.Linear(in_features=128, out_features=1024)
         # self.sfc1 = module_div_norm('none', 'none', 1024)
 
         # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)
         self.decoder = nn.Linear(in_features=1024, out_features=10)         # only saves the output from the last timestep to train
-
-
+    
     def forward(self, input, batch=True):
 
         """ Feedforward sweep. 
@@ -63,12 +62,20 @@ class cnn_feedforward_div_norm(nn.Module):
         # torch.Size([100, 32, 2, 2])
         # torch.Size([100, 1024])
 
-        # initiate activations           
-        actvsc1     = torch.zeros(self.t_steps, self.batchsiz, 32, 24, 24)
-        actvsc1_s   = torch.zeros(self.t_steps, self.batchsiz, 32, 24, 24)
-        actvsc2     = torch.zeros(self.t_steps, self.batchsiz, 32, 8, 8)
-        actvsc3     = torch.zeros(self.t_steps, self.batchsiz, 32, 2, 2)
-        actvsfc1    = torch.zeros(self.t_steps, self.batchsiz, 1024)
+
+        # initiate activations  
+        if batch:         
+            actvsc1     = torch.zeros(self.t_steps, self.batchsiz, 32, 24, 24)
+            actvsc1_s   = torch.zeros(self.t_steps, self.batchsiz, 32, 24, 24)
+            actvsc2     = torch.zeros(self.t_steps, self.batchsiz, 32, 8, 8)
+            actvsc3     = torch.zeros(self.t_steps, self.batchsiz, 32, 2, 2)
+            actvsfc1    = torch.zeros(self.t_steps, self.batchsiz, 1024)
+        else:
+            actvsc1     = torch.zeros(self.t_steps, 1, 32, 24, 24)
+            actvsc1_s   = torch.zeros(self.t_steps, 1, 32, 24, 24)
+            actvsc2     = torch.zeros(self.t_steps, 1, 32, 8, 8)
+            actvsc3     = torch.zeros(self.t_steps, 1, 32, 2, 2)
+            actvsfc1    = torch.zeros(self.t_steps, 1, 1024)
 
         # # conv1
         # x = self.conv1(input[0])
@@ -132,8 +139,7 @@ class cnn_feedforward_div_norm(nn.Module):
 
                 # fc1
                 x = self.dropout(actvsc3[t, :, :, :, :]) 
-
-                if batch:  
+                if batch:
                     x = x.view(x.size(0), -1)
                 else:
                     x = torch.flatten(x)

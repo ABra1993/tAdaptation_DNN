@@ -26,24 +26,24 @@ startTime = time.time()
 dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # track model training on neptune
-run_init = True
-random_init = 1
+run_init = False
+random_init = 30
 
 # set hypterparameters
 numepchs = 1
-batchsiz = 100
-lr = 0.001
-sample_rate = 32
+batchsiz = 64
+lr = 0.0001
+sample_rate = 256
 
 # define number of timesteps
 t_steps = 10
 print('\nNumber of timesteps: ', t_steps)
 
 # noise pattern
-noise = 'different'
+noise = 'same'
 contrast = 'lcontrast'
-adapt = 'exp_decay'
-# adapt = 'div_norm'
+# adapt = 'exp_decay'
+adapt = 'div_norm'
 
 train_tau1 = False
 train_tau2 = False
@@ -114,9 +114,9 @@ for i in range(random_init):
 
     # # test model
     if run_init:
-        accu, run = test(model, ldrs, t_steps, run=run)
+        accu, run = test(model=model, ldrs=ldrs, t_steps=t_steps, batch_size=batchsiz, run=run)
     else:
-        accu = test(model, ldrs, t_steps)
+        accu = test(model=model, ldrs=ldrs, t_steps=t_steps, batch_size=batchsiz)
 
     # save accuracies
     accuracies[i] = torch.mean(accu)
