@@ -25,7 +25,8 @@ import neptune.new as neptune
 startTime = time.time()
 
 # define root
-dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
+# dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
+dir = '/var/scratch/ambrands/code/tAdaptation_DNN/'
 
 # simulate model and save activations
 idx = torch.randint(10000, (1,))
@@ -176,16 +177,16 @@ for i in range(random_init):
     for j in range(len(runs_labels)):
         df.loc[i, runs_labels[j]] = float(accuracies[j])
     df.loc[i, 'acc'] = float(torch.mean(accuracies))
-    df.to_csv('accu/grid_search/meta.txt', header=True, sep=' ')
+    df.to_csv('accu/grid_search2/meta.txt', header=True, sep=' ')
     print(df)
 
     if float(torch.mean(accuracies)) > 0.5:
 
         # save accuracies
         if adapt == 'exp_decay':
-            torch.save(accuracies, 'accu/grid_search/'+ str(i+1) + '_feedforward_' + adapt + '_' + noise + '_' + contrast)
+            torch.save(accuracies, 'accu/grid_search2/'+ str(i+1) + '_feedforward_' + adapt + '_' + noise + '_' + contrast)
         elif adapt == 'div_norm':
-            torch.save(accuracies, 'accu/grid_search/'+ str(i+1) + '_feedforward_' + adapt + '_' + noise + '_' + contrast)
+            torch.save(accuracies, 'accu/grid_search2/'+ str(i+1) + '_feedforward_' + adapt + '_' + noise + '_' + contrast)
 
         # prepare image sequence
         imgs_seq = []
@@ -223,7 +224,7 @@ for i in range(random_init):
 
         # save figure
         plt.legend()
-        plt.savefig('visualizations/grid_search/' + str(i+1), dpi=300)
+        plt.savefig('visualizations/grid_search2/' + str(i+1), dpi=300)
         plt.close()
 
 # determine time it took to run script 

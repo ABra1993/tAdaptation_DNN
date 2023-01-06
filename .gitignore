@@ -7,6 +7,5 @@ datasets/*
 # models/utils
 predefined_variables/*
 runs/*
-utils/*
 weights/*
 
