@@ -95,14 +95,13 @@ train_sigma = False
 runs_labels = []
 for run in range(runs):
     runs_labels.append('acc' + str(run+1))
-df = pd.DataFrame(columns=['Init', 'sample_rate', 'tau1_init', 'tau2_init', 'sigma_init', 'acc'] + runs_labels)
+df = pd.DataFrame(columns=['Init', 'noise', 'sample_rate', 'tau1_init', 'tau2_init', 'sigma_init', 'acc'] + runs_labels)
 
 # run n random initializations
-accuracies = torch.zeros(random_init)
 for i in range(random_init):
 
     # initiate dataframe to store accuracies
-    accuracies = torch.zeros(random_init)
+    accuracies = torch.zeros(runs)
 
     # choose initial values DN model
     tau1_init = torch.rand(1)
@@ -118,7 +117,7 @@ for i in range(random_init):
     # noise = 'same'
 
     df.loc[i, 'Init'] = i+1
-    df.loc[i, ['sample_rate', 'tau1_init', 'tau2_init', 'sigma_init']] = [sample_rate, float(tau1_init[0]), float(tau2_init[0]), float(sigma_init[0])]
+    df.loc[i, ['noise', 'sample_rate', 'tau1_init', 'tau2_init', 'sigma_init']] = [noise, sample_rate, float(tau1_init[0]), float(tau2_init[0]), float(sigma_init[0])]
 
     for j in range(runs):
 
@@ -174,15 +173,13 @@ for i in range(random_init):
             run.stop()
 
     # save accuracies
-    sum = 0
     for j in range(len(runs_labels)):
-        sum += float(accuracies[j])
-        df[runs_labels[j]] = float(accuracies[j])
-    df['acc'] = sum/runs
+        df.loc[i, runs_labels[j]] = float(accuracies[j])
+    df.loc[i, 'acc'] = float(torch.mean(accuracies))
     df.to_csv('accu/grid_search/meta.txt', header=True, sep=' ')
     print(df)
 
-    if torch.mean(accuracies) > 0.5:
+    if float(torch.mean(accuracies)) > 0.5:
 
         # save accuracies
         if adapt == 'exp_decay':
@@ -206,7 +203,7 @@ for i in range(random_init):
         # plot activations
         fig = plt.figure()
         ax = plt.gca()
-        ax.set_title('noise, {}: sample rate, {}; accuracy, {}; \n tau1, {}; tau2, {}; sigma, {}'.format('noise', sample_rate, np.round(float(torch.mean(accuracies)), 4), np.round(float(tau1_init[0]), 4), np.round(float(tau2_init[0]), 4), np.round(float(sigma_init[0]), 4)))
+        ax.set_title('noise, {}: sample rate, {}; accuracy, {}; \n tau1, {}; tau2, {}; sigma, {}'.format(noise, sample_rate, np.round(float(torch.mean(accuracies)), 4), np.round(float(tau1_init[0]), 4), np.round(float(tau2_init[0]), 4), np.round(float(sigma_init[0]), 4)))
         ax.set_xlabel('Model step')
         ax.set_xticks(np.arange(t_steps)+1)
         ax.set_ylabel('Model activations (a.u.)')
