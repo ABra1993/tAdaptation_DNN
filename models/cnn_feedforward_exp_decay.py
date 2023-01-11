@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 class cnn_feedforward_exp_decay(nn.Module):
 
-    def __init__(self, t_steps=3):
+    def __init__(self, train_alpha, train_beta, t_steps=3):
         super(cnn_feedforward_exp_decay, self).__init__()
 
         # training variables
@@ -18,23 +18,23 @@ class cnn_feedforward_exp_decay(nn.Module):
 
         # layers
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5)
-        self.sconv1 = module_exp_decay(32, 24, 24)
+        self.sconv1 = module_exp_decay(32, 24, 24, train_alpha, train_beta)
         # self.sconv1 = module_div_norm(32, 24, 24)
         
         self.relu = nn.ReLU()
         self.pool = nn.MaxPool2d(2, 2)
     
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5)
-        self.sconv2 = module_exp_decay(32, 8, 8)
+        self.sconv2 = module_exp_decay(32, 8, 8, train_alpha, train_beta)
         # self.sconv2 = module_div_norm(32, 8, 8)
 
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
-        self.sconv3 = module_exp_decay(32, 2, 2)
+        self.sconv3 = module_exp_decay(32, 2, 2, train_alpha, train_beta)
         # self.sconv3 = module_div_norm(32, 2, 2)
         self.dropout = nn.Dropout()
 
         self.fc1 = nn.Linear(in_features=128, out_features=1024)
-        self.sfc1 = module_exp_decay('none', 'none', 1024)
+        self.sfc1 = module_exp_decay('none', 'none', 1024, train_alpha, train_beta)
         # self.sfc1 = module_div_norm('none', 'none', 1024)
 
         # self.decoder = nn.Linear(in_features=1024*self.t_steps, out_features=10)

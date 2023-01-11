@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 class module_div_norm(nn.Module):
     
-    def __init__(self, batchsiz, height, width, channels, sample_rate, t_steps, tau1_init, tau2_init, sigma_init):
+    def __init__(self, batchsiz, height, width, channels, sample_rate, t_steps, tau1_init, train_tau1, tau2_init, train_tau2, sigma_init, train_sigma):
         super().__init__()
 
         # set dimensions
@@ -23,9 +23,9 @@ class module_div_norm(nn.Module):
         # self.tau2        = nn.Parameter(torch.rand(self.c, self.w, self.h), requires_grad=False)
         # self.sigma       = nn.Parameter(torch.rand(self.c, self.w, self.h), requires_grad=False)
 
-        self.tau1        = nn.Parameter(tau1_init, requires_grad=False)
-        self.tau2        = nn.Parameter(tau2_init, requires_grad=False)
-        self.sigma       = nn.Parameter(sigma_init, requires_grad=False)
+        self.tau1        = nn.Parameter(tau1_init, requires_grad=train_tau1)
+        self.tau2        = nn.Parameter(tau2_init, requires_grad=train_tau2)
+        self.sigma       = nn.Parameter(sigma_init, requires_grad=train_sigma)
 
     def h1(self):
 

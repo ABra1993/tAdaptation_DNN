@@ -25,29 +25,57 @@ startTime = time.time()
 # define root
 dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
-# track model training on neptune
-run_init = False
-random_init = 30
+# 22   269       same   tensor([16.])   0.034268   0.540629    0.006827  0.722532  0.733280  0.718949  0.715366
+# 23   269  different   tensor([16.])   0.034268   0.540629    0.006827  0.677979  0.688694  0.669984  0.675259
 
 # set hypterparameters
+contrast = 'lcontrast'
 numepchs = 1
 batchsiz = 64
 lr = 0.0001
-sample_rate = 256
+sample_rate = 16
+
+# track model training on neptune (CHANGE THESE VALUES)
+run_init = True
+random_init = 1
+
+save_weight = True
+save_accu = False
+
+# param = 'fixed'
+param = 'trained'
+
+# noise = 'different'
+noise = 'same'
+
+# adapt = 'exp_decay'
+adapt = 'div_norm'
 
 # define number of timesteps
 t_steps = 10
 print('\nNumber of timesteps: ', t_steps)
 
-# noise pattern
-noise = 'same'
-contrast = 'lcontrast'
-# adapt = 'exp_decay'
-adapt = 'div_norm'
+if param == 'trained':
 
-train_tau1 = False
-train_tau2 = False
-train_sigma = False
+    # div. norm.
+    train_tau1 = True
+    train_tau2 = True
+    train_sigma = True
+
+    # exp. decay.
+    train_alpha = True
+    train_beta = True
+
+else:
+
+    # div. norm.
+    train_tau1 = False
+    train_tau2 = False
+    train_sigma = False
+
+    # exp. decay.
+    train_alpha = False
+    train_beta = False
 
 # load training set
 noise_imgs = torch.load(dir+'datasets/noiseMNIST/data/' + str(t_steps) + '_' + noise + '_' + 'train_imgs_' + contrast)
@@ -80,9 +108,9 @@ for i in range(random_init):
     # tau1_init = torch.rand(1)
     # tau2_init = torch.rand(1)
     # sigma_init = torch.rand(1)
-    tau1_init = torch.Tensor([0.0075])
-    tau2_init = torch.Tensor([0.3741])
-    sigma_init = torch.Tensor([0.1711])
+    tau1_init = torch.Tensor([0.034268])
+    tau2_init = torch.Tensor([0.540629])
+    sigma_init = torch.Tensor([0.006827])
 
     df.loc[i, 'Init'] = 1
     df.loc[i, ['tau1_init', 'tau2_init', 'sigma_init']] = [tau1_init, tau2_init, sigma_init]
@@ -93,15 +121,17 @@ for i in range(random_init):
             project="abra1993/adapt-dnn",
             api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ODkxNGY3NS05NGJlLTQzZDEtOGU5Yy0xMjJlYzI0YzE2YWUifQ==",
         )  # your credentials
-
-        params = {"name:": adapt + '-' + '-' + contrast + '-' + str(i), "learning_rate": lr, 'train_tau1': train_tau1, 'train_tau2': train_tau2, 'train_sigma': train_sigma} 
+        if adapt == 'div_norm':
+            params = {"name:": adapt + '-' + '-' + contrast + '-' + str(i), "learning_rate": lr, 'train_tau1': train_tau1, 'train_tau2': train_tau2, 'train_sigma': train_sigma} 
+        elif adapt == 'exp_decay':
+            params = {"name:": adapt + '-' + '-' + contrast + '-' + str(i), "learning_rate": lr, 'train_alpha': train_alpha, 'train_beta': train_beta} 
         run["parameters"] = params
 
     # initiate model
     if adapt == 'exp_decay':
-        model = cnn_feedforward_exp_decay(t_steps=t_steps)
+        model = cnn_feedforward_exp_decay(train_alpha, train_beta, t_steps=t_steps)
     elif adapt == 'div_norm':
-        model = cnn_feedforward_div_norm(tau1_init, tau2_init, sigma_init, batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
+        model = cnn_feedforward_div_norm(tau1_init, train_tau1, tau2_init, train_tau2, sigma_init, train_sigma, batchsiz=batchsiz, t_steps=t_steps, sample_rate=sample_rate)
 
     lossfunct = nn.CrossEntropyLoss()   
     optimizer = optim.Adam(model.parameters(), lr=lr)   
@@ -125,19 +155,21 @@ for i in range(random_init):
     if run_init:
         run.stop()
 
-# save model
-next(model.parameters()).device
-if adapt == 'exp_decay':
-    torch.save(model.state_dict(), dir+'/weights/weights_feedforward_' + adapt + '_' + noise + '_' + contrast + '.pth')
-elif adapt == 'div_norm':
-    torch.save(model.state_dict(), dir+'weights/weights_feedforward_' + adapt + '_' + noise + '_' + contrast + '.pth')
-print('Weights saved!')
+# save model weights
+if save_weight:
+    next(model.parameters()).device
+    if adapt == 'exp_decay':
+        torch.save(model.state_dict(), dir+'/weights/weights_feedforward_' + adapt + '_' + noise + '_' + contrast + '_' + param + '.pth')
+    elif adapt == 'div_norm':
+        torch.save(model.state_dict(), dir+'weights/weights_feedforward_' + adapt + '_' + noise + '_' + contrast + '_' + param + '.pth')
+    print('Weights saved!')
 
 # save accuracies
-if adapt == 'exp_decay':
-    torch.save(accuracies, 'accu/feedforward_' + adapt + '_' + noise + '_' + contrast)
-elif adapt == 'div_norm':
-    torch.save(accuracies, 'accu/feedforward_' + adapt + '_' + noise + '_' + contrast)
+if save_accu:    
+    if adapt == 'exp_decay':
+        torch.save(accuracies, 'accu/feedforward_' + adapt + '_' + noise + '_' + contrast + '_' + param)
+    elif adapt == 'div_norm':
+        torch.save(accuracies, 'accu/feedforward_' + adapt + '_' + noise + '_' + contrast + '_' + param)
 
 print(30*'--')
 print('Mean accuracy: ', torch.round(torch.mean(accuracies), decimals=2))

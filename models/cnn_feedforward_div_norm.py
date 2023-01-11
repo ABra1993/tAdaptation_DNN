@@ -11,7 +11,7 @@ import torch.nn.utils.parametrize as P
 
 class cnn_feedforward_div_norm(nn.Module):
 
-    def __init__(self, tau1_init, tau2_init, sigma_init, batchsiz=64, t_steps=3, sample_rate=1):
+    def __init__(self, tau1_init, train_tau1, tau2_init, train_tau2, sigma_init, train_sigma, batchsiz=64, t_steps=3, sample_rate=1):
         super(cnn_feedforward_div_norm, self).__init__()
 
         # training variables
@@ -24,7 +24,7 @@ class cnn_feedforward_div_norm(nn.Module):
         nn.init.xavier_uniform_(self.conv1.weight)
         # P.register_parametrization(self.conv1, 'weight', Positive())
         # P.register_parametrization(self.conv1, 'bias', Positive())
-        self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32, sample_rate, self.t_steps, tau1_init, tau2_init, sigma_init)
+        self.sconv1 = module_div_norm(self.batchsiz, 24, 24, 32, sample_rate, self.t_steps, tau1_init, train_tau1, tau2_init, train_tau2, sigma_init, train_sigma)
         
         self.relu = nn.ReLU()
         # self.batchnorm = nn.BatchNorm2d(32)

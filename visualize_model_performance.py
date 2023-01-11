@@ -1,7 +1,6 @@
 # %%
 
 import torch
-import re
 print('\n', 'GPU available: ', torch.cuda.is_available(), '\n')
 import numpy as np
 from torch import optim
@@ -10,10 +9,11 @@ from torchsummary import summary
 import time
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
+import math
 
 # import required script
-from models.cnn_feedforward import cnn_feedforward
-from models.cnn_feedforward_exp_decay import cnn_feedforward_exp_decay
+# from models.cnn_feedforward import cnn_feedforward
+# from models.cnn_feedforward_exp_decay import cnn_feedforward_exp_decay
 from utils.noiseMNIST_dataset import noiseMNIST_dataset
 from utils.functions import *
 import neptune.new as neptune
@@ -24,100 +24,70 @@ startTime = time.time()
 # define root
 linux = True # indicates whether script is run on mac or linux
 if linux:
-    dir = '/home/amber/ownCloud/'
-else:
-    dir = '/Users/a.m.brandsuva.nl/surfdrive/'
+    dir = '/home/amber/OneDrive/code/git_nAdaptation_DNN/'
 
 # noise labels
-noise_labels = ['none', 'same', 'different']
+# noise_labels = ['No adaptation - same', 'No adaptation - different', 'Exp. decay - same',  'Exp. decay - different', 'Div. norm. - same', 'Div. norm. - different']
+noise_labels = ['No adaptation', 'Exp. decay', 'Div. norm.']
 
-# load test set
-noise_imgs = torch.load(dir+'Documents/code/nAdaptation_DNN/stimuli/noiseMNIST/test/imgs')
-noise_lbls = torch.load(dir+'Documents/code/nAdaptation_DNN/stimuli/noiseMNIST/test/lbls')
+contrast = 'lcontrast'
+param = 'fixed'
 
-noise_patterns = []
-with open(dir+'Documents/code/nAdaptation_DNN/stimuli/noiseMNIST/test/pattern.txt') as file:
-    for line in file:
-        noise_patterns.append(line.strip('\n'))
-# print(noise_patterns)
+# load accuracies with random initializations
+accu_same_no = torch.load(dir+'accu/feedforward_same_' + contrast)
+accu_same_no_mean = torch.mean(accu_same_no)*100
+accu_same_no_std = torch.std(accu_same_no)/math.sqrt(len(accu_same_no))*100
 
-# create test dataset
-testdt = noiseMNIST_dataset(noise_imgs, noise_lbls)
-print('Shape test set: ', noise_imgs.shape, ', ', noise_lbls.shape)
+accu_different_no = torch.load(dir+'accu/feedforward_different_' + contrast)
+accu_different_no_mean = torch.mean(accu_different_no)*100
+accu_different_no_std = torch.std(accu_different_no)/math.sqrt(len(accu_different_no))*100
 
-# dataloader
-ldrs = {    
-    'test'  : torch.utils.data.DataLoader(testdt, 
-                                        batch_size=1, 
-                                        shuffle=False, 
-                                        num_workers=1),
-}
-print('\nNumber of training batches: ', len(ldrs['test']), '\n')
+accu_same_exp_decay = torch.load(dir+'accu/feedforward_exp_decay_same_' + contrast + '_' + param)
+accu_same_mean_exp_decay = torch.mean(accu_same_exp_decay)*100
+accu_same_std_exp_decay = torch.std(accu_same_exp_decay)/math.sqrt(len(accu_same_exp_decay))*100
 
-# example stimuli
-for a, (img1, img2, img3, lbls) in enumerate(ldrs['test']):
-    if a < 3:
+accu_different_exp_decay = torch.load(dir+'accu/feedforward_exp_decay_different_' + contrast + '_' + param)
+accu_diff_mean_exp_decay = torch.mean(accu_different_exp_decay)*100
+accu_diff_std_exp_decay = torch.std(accu_different_exp_decay)/math.sqrt(len(accu_different_exp_decay))*100
 
-        # initiate plot
-        fig, axs = plt.subplots(1, 3, figsize=(8, 2))
-        axs[1].set_title(noise_patterns[a] + ', ' + str(lbls[0]))
+accu_same_div_norm = torch.load(dir+'accu/feedforward_div_norm_same_' + contrast + '_' + param)
+accu_same_mean_div_norm = torch.mean(accu_same_div_norm)*100
+accu_same_std_div_norm = torch.std(accu_same_div_norm)/math.sqrt(len(accu_same_div_norm))*100
 
-        # plot images
-        tmp = img1[0, :, :, :]
-        shape = tmp.shape
-        axs[0].imshow(tmp.reshape(28, 28, 1))
+accu_different_div_norm = torch.load(dir+'accu/feedforward_div_norm_different_' + contrast + '_' + param)
+accu_diff_mean_div_norm = torch.mean(accu_different_div_norm)*100
+accu_diff_std_div_norm = torch.std(accu_different_div_norm)/math.sqrt(len(accu_different_div_norm))*100
 
-        tmp = img2[0, :, :, :]
-        shape = tmp.shape
-        axs[1].imshow(tmp.reshape(28, 28, 1))
+points = [accu_same_no, accu_different_no, accu_same_exp_decay, accu_different_exp_decay, accu_same_div_norm, accu_different_div_norm]
+mean = [accu_same_no_mean, accu_different_no_mean, accu_same_mean_exp_decay,accu_diff_mean_exp_decay, accu_same_mean_div_norm, accu_diff_mean_div_norm]
+# std = [accu_same_no_std, accu_different_no_std, accu_same_std_exp_decay, accu_diff_std_exp_decay, accu_same_std_div_norm, accu_diff_std_div_norm]
 
-        tmp = img3[0, :, :, :]
-        shape = tmp.shape
-        axs[2].imshow(tmp.reshape(28, 28, 1))
-# plt.show()
+# set alphas
+alpha_low = 0.5
+alpha = [1, 1, alpha_low, 1, alpha_low]
+color = ['dodgerblue', 'darkorange', 'dodgerblue', 'darkorange', 'dodgerblue', 'darkorange']
+x = [0, 1, 3, 4, 6, 7]
 
-# initiate model
-model = cnn_feedforward_exp_decay()
-for name, param in model.named_parameters(): 
-    if param.requires_grad: 
-        print(name) 
-        # print(param.data)
-model.load_state_dict(torch.load(dir+'Documents/code/nAdaptation_DNN/weights/weights_feedforward_exp_decay.pth'))
-
-# Test the model
-accu = np.zeros(len(noise_patterns))
-model.eval()
-with torch.no_grad():
-    for a, (img1, img2, img3, lbls) in enumerate(ldrs['test']):
-        testoutp = model([img1, img2, img3])
-        predicy = torch.argmax(testoutp[6], dim=1)
-        if predicy == lbls:
-            accu[a] = 1
-
-# retrieve indices
-idx_no = list()
-idx_same = list()
-idx_diff = list()
-for i, noise in enumerate(noise_patterns):
-    if noise == 'none':
-        idx_no.append(i)
-    elif noise == 'same':
-        idx_same.append(i)
-    else:
-        idx_diff.append(i)
-
-# print accuracies
-print('No noise: ', sum(accu[idx_no])/len(idx_no))
-print('Same noise: ', sum(accu[idx_same])/len(idx_same))
-print('Different noise: ', sum(accu[idx_diff])/len(idx_diff))
-
+# initiate figure
 fig = plt.figure()
-plt.bar(np.arange(len(noise_labels)), [sum(accu[idx_no])/len(idx_no), sum(accu[idx_same])/len(idx_same), sum(accu[idx_diff])/len(idx_diff)], color='grey', width=0.5)
 ax = plt.gca()
-ax.set_xticks(np.arange(len(noise_labels)))
-ax.set_xticklabels(noise_labels, rotation=45)
 
-# determine time it took to run script 
-executionTime = (time.time() - startTime)
-print('Execution time in seconds: ' + str(executionTime))
+# plot data
+ax.scatter(x, mean, edgecolor=color, color='white', s=100)
+for i in range(len(points)):
+    print(points[i])
+    ax.scatter(np.ones(len(points[i]))*x[i], points[i]*100, color=color[i], s=50, alpha=0.2, zorder=-1)
 
+# adjust axis
+ax.set_xlim(-0.5, 7.5)
+ax.set_xticks([0.5, 3.5, 6.5])
+ax.set_xticklabels(noise_labels, rotation=45, fontsize=15)
+# ax.set_ylim(59, 75)
+ax.set_ylabel('Accuracy (in %)', fontsize=15)
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+
+plt.tight_layout()
+plt.savefig(dir+'visualizations/test_performance_' + contrast +'.svg', format='svg') # + '.svg', format='svg')
+plt.savefig(dir+'visualizations/test_performance_' + contrast, dpi=300)
+plt.show()

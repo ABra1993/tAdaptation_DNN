@@ -135,9 +135,13 @@ def train(numepchs, model, ldrs, lossfunct, optim, batch_size, t_steps, run=None
             losses.backward() 
             optim.step()                
             
+            # if (a+1) % 50 == 0:
+            #     print ('Random init {} (run {}), Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
+            #         .format(rand_init+1, run_num+1, epoch+1, numepchs, a+1, ttlstp, losses.item()))
+
             if (a+1) % 50 == 0:
-                print ('Random init {} (run {}), Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
-                    .format(rand_init+1, run_num+1, epoch+1, numepchs, a+1, ttlstp, losses.item()))
+                print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
+                    .format(epoch+1, numepchs, a+1, ttlstp, losses.item()))
 
             # print('weight conv1: ', model.conv1.weight.grad[0, 0, 0, 0])
             # print('tau1: ', model.sconv1.tau1.grad)
@@ -193,9 +197,9 @@ def test(model, ldrs, t_steps, batch_size, batch=True, run=None, rand_init=None,
             accu = (predicy == lbls).sum().item() / float(lbls.size(0))
             run_accu[a] = accu
 
-            if (a+1) % 50 == 0:
-                print ('Random init {} (run {}), Step [{}/{}], accuraciy: {:.4f}' 
-                    .format(rand_init+1, run_num+1, a+1, ttlstp, accu))
+            # if (a+1) % 50 == 0:
+            #     print ('Random init {} (run {}), Step [{}/{}], accuraciy: {:.4f}' 
+            #         .format(rand_init+1, run_num+1, a+1, ttlstp, accu))
 
             if run != None:
                 run["metrics/test/acc"].log(accu)

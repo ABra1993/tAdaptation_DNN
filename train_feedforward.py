@@ -37,7 +37,7 @@ t_steps = 10
 print('\nNumber of timesteps: ', t_steps)
 
 # noise pattern
-noise = 'same'
+noise = 'different'
 contrast = 'lcontrast'
 
 # load training set
