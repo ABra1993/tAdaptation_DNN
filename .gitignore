@@ -1,0 +1,11 @@
+__pycache__
+models/__pycache__
+weights
+metrics
+data
+visualization
+model_analyse_novelty_intervention.py
+model_train_dataloader_novelty_augmented.py
+visualize_embedding_diffusion.py
+visualize_embedding_occlusion.py
+visualize_parameters_novelty.py
