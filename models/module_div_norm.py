@@ -19,13 +19,13 @@ class module_div_norm(nn.Module):
         """ x is the current input computed for the linear response, F is the multiplicative feedback
         and G is the feedback signal. """
 
-        # clamp previous decay
-        g_previous = torch.clamp(g_previous, min=torch.zeros_like(g_previous), max=torch.ones_like(g_previous) * self.K)   # update feedback signal
+        # # clamp previous decay
+        # g_previous = torch.clamp(g_previous, min=torch.zeros_like(g_previous), max=torch.ones_like(g_previous) * self.K)   # update feedback signal
 
-        # # compute feedback for current timestep (using g_previous)
-        # if torch.max(g_previous) > self.K:                                                                    # rescale if feedback signal exceeds maximal attainable response
-        #     g_previous = g_previous/torch.max(g_previous)
-        #     g_previous = g_previous*self.K
+        # scaling previous decay (maintains relations between pixel values)
+        if torch.max(g_previous) > self.K:                                                                    # rescale if feedback signal exceeds maximal attainable response
+            g_previous = g_previous/torch.max(g_previous)
+            g_previous = g_previous*self.K
         
         # compute feedback signal
         feedback = torch.sqrt(torch.subtract(self.K, g_previous)+self.epsilon)/(self.sigma + self.epsilon)      # multiplicative feedback                                                    # response
